@@ -113,6 +113,7 @@ export interface QuietHours {
 }
 
 export type TranslationProvider = 'builtin' | 'libretranslate' | 'openai';
+export type SettingsProxyMode = 'system' | 'direct' | 'manual';
 
 export interface Settings {
   /** Steam 区域代码，如 cn / us / hk / jp */
@@ -140,6 +141,8 @@ export interface Settings {
   translationApiKey: string;
   translationModel: string;
   translationTarget: string;
+  proxyMode: SettingsProxyMode;
+  proxyRules: string;
 }
 
 /** 设置补丁：桥协议里 updateSettings 的 patch 字段 */
@@ -170,6 +173,8 @@ export interface SettingsPatch {
   translationApiKey?: string;
   translationModel?: string;
   translationTarget?: string;
+  proxyMode?: SettingsProxyMode;
+  proxyRules?: string;
 }
 
 /**
@@ -392,7 +397,9 @@ export function defaultSettings(): Settings {
     translationEndpoint: '',
     translationApiKey: '',
     translationModel: '',
-    translationTarget: 'zh-CN'
+    translationTarget: 'zh-CN',
+    proxyMode: 'system',
+    proxyRules: ''
   };
   return settings;
 }

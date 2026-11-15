@@ -147,12 +147,15 @@ export class RadarService {
     const lowestBefore = { ...this.store.state.lowest };
 
     const pages = Array.from({ length: settings.fetchPages }, (_, index) => index);
+    const fetchErrors: string[] = [];
     const pageResults = await mapLimit(pages, 3, async (page) => {
       try {
         const body = await this.http(buildDealsUrl(opts, page));
         return parseSearchPayload(body, currency);
       } catch (error) {
-        console.warn(`[radar] 抓取第 ${page + 1} 页失败: ${errorMessage(error)}`);
+        const message = errorMessage(error);
+        fetchErrors.push(message);
+        console.warn(`[radar] 抓取第 ${page + 1} 页失败: ${message}`);
         return [] as Deal[];
       }
     });
@@ -166,7 +169,8 @@ export class RadarService {
     deals = this.decorate(deals, featured);
 
     if (deals.length === 0) {
-      this.lastError = "无法从 Steam 获取折扣数据，请检查网络或稍后重试";
+      const detail = fetchErrors[0] ? `（${fetchErrors[0]}）` : "";
+      this.lastError = `无法从 Steam 获取折扣数据${detail}，请检查网络或代理后重试`;
       this.store.state.lastRefreshError = this.lastError;
       await this.store.flush();
       return {

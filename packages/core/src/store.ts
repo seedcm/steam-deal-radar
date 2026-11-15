@@ -36,6 +36,8 @@ export const DEFAULT_SETTINGS: Settings = {
   translationApiKey: "",
   translationModel: "",
   translationTarget: "zh-CN",
+  proxyMode: "system",
+  proxyRules: "",
 };
 
 export interface PersistedState {

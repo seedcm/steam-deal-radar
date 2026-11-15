@@ -132,6 +132,8 @@ export function sanitizeSettings(patch: Partial<Settings>, current: Settings): S
   next.translationApiKey = String(next.translationApiKey ?? "").trim();
   next.translationModel = String(next.translationModel ?? "").trim();
   next.translationTarget = String(next.translationTarget || "zh-CN").trim();
+  if (!["system", "direct", "manual"].includes(next.proxyMode)) next.proxyMode = "system";
+  next.proxyRules = String(next.proxyRules ?? "").trim();
   next.quietHours.start = clamp(Math.round(next.quietHours.start ?? 23), 0, 23);
   next.quietHours.end = clamp(Math.round(next.quietHours.end ?? 8), 0, 23);
   if (next.language && next.country) {

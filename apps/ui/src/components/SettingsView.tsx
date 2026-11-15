@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { AppInfo, Settings, TranslationProvider } from "@radar/core";
+import type { AppInfo, ProxyMode, Settings, TranslationProvider } from "@radar/core";
 import { REGIONS, TRANSLATION_TARGETS, formatDateTime, formatRelativeTime } from "@radar/core";
 import {
   BellRing,
@@ -8,6 +8,7 @@ import {
   Download,
   Globe2,
   Info,
+  Network,
   Languages,
   Loader2,
   RefreshCw,
@@ -357,6 +358,49 @@ export function SettingsView({
         {appInfo?.platform === "harmony" && (
           <p className="hint">自定义翻译源目前仅桌面端支持，鸿蒙端会使用内置免费引擎。</p>
         )}
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">
+          <span className="panel__icon">
+            <Network size={16} />
+          </span>
+          <div>
+            <h2>网络</h2>
+            <p>折扣、图片、翻译和更新请求都走这里设置的代理</p>
+          </div>
+        </div>
+
+        <Field title="代理模式" desc="如果开了 Clash 等代理软件，选「手动」并填本地端口通常最稳">
+          <div className="select">
+            <select
+              value={settings.proxyMode}
+              aria-label="代理模式"
+              onChange={(event) => onChange({ proxyMode: event.target.value as ProxyMode })}
+            >
+              <option value="system">跟随系统</option>
+              <option value="direct">直连（不使用代理）</option>
+              <option value="manual">手动代理</option>
+            </select>
+            <ChevronDown size={13} />
+          </div>
+        </Field>
+
+        {settings.proxyMode === "manual" && (
+          <Field title="代理地址" desc="支持 http:// 或 socks5://，多个代理用分号分隔">
+            <input
+              className="text-input field-input"
+              value={settings.proxyRules}
+              placeholder="http://127.0.0.1:7890"
+              onChange={(event) => onChange({ proxyRules: event.target.value })}
+              spellCheck={false}
+            />
+          </Field>
+        )}
+
+        <p className="hint">
+          修改后立即生效（下一次请求开始使用）；如果代理软件只监听局域网地址，请填实际地址。当前仅桌面端支持代理设置。
+        </p>
       </section>
 
       <section className="panel">

@@ -7,6 +7,7 @@ export type SortKey = "discount" | "price" | "name" | "review";
 export type PlatformFilter = "all" | "windows" | "linux";
 export type ThemeMode = "dark" | "light";
 export type TranslationProvider = "builtin" | "libretranslate" | "openai";
+export type ProxyMode = "system" | "direct" | "manual";
 export type NotifyKind = "target" | "newlow" | "sale" | "digest";
 
 export interface Platforms {
@@ -106,6 +107,10 @@ export interface Settings {
   translationModel: string;
   /** 默认翻译目标语言，如 zh-CN / en / ja */
   translationTarget: string;
+  /** 网络代理：跟随系统 / 直连 / 手动 */
+  proxyMode: ProxyMode;
+  /** 手动代理规则，如 http://127.0.0.1:7890 */
+  proxyRules: string;
 }
 
 export interface AppNotification {

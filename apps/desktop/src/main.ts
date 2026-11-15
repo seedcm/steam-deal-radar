@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, protocol, shell } from "electron";
+import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, net, protocol, session, shell } from "electron";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -62,7 +62,8 @@ async function httpGet(url: string, init?: HttpRequestInit): Promise<string> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), 25_000);
   try {
-    const response = await fetch(url, {
+    // 用 Electron 的 net.fetch（Chromium 网络栈）：会走系统代理，并处理证书/双栈回退
+    const response = await net.fetch(url, {
       method: init?.method ?? "GET",
       body: init?.body,
       headers: {
@@ -119,7 +120,7 @@ async function handleImageRequest(request: Request): Promise<Response> {
     } catch {
       const abort = new AbortController();
       const timer = setTimeout(() => abort.abort(), 15_000);
-      const response = await fetch(remote, { headers: { "user-agent": UA }, signal: abort.signal }).finally(() => clearTimeout(timer));
+      const response = await net.fetch(remote, { headers: { "user-agent": UA }, signal: abort.signal }).finally(() => clearTimeout(timer));
       if (!response.ok) {
         console.error("[img] remote status", response.status, remote);
         return new Response("not found", { status: 404 });
@@ -297,9 +298,29 @@ function applySettings(next: Settings): void {
   if (!next) return;
   const changedInterval = currentSettings?.refreshMinutes !== next.refreshMinutes;
   const changedLaunch = currentSettings?.autoLaunch !== next.autoLaunch;
+  const changedProxy =
+    currentSettings?.proxyMode !== next.proxyMode || currentSettings?.proxyRules !== next.proxyRules;
   currentSettings = next;
   if (changedInterval) scheduleRefresh();
   if (changedLaunch) applyAutoLaunch(next.autoLaunch);
+  if (changedProxy) void applyProxy(next);
+}
+
+/** 让主进程的 HTTP 请求按设置使用系统代理 / 直连 / 手动代理 */
+async function applyProxy(settings: Settings): Promise<void> {
+  try {
+    const ses = session.defaultSession;
+    if (settings.proxyMode === "direct") {
+      await ses.setProxy({ mode: "direct" });
+    } else if (settings.proxyMode === "manual" && settings.proxyRules.trim()) {
+      await ses.setProxy({ mode: "fixed_servers", proxyRules: settings.proxyRules.trim() });
+    } else {
+      await ses.setProxy({ mode: "system" });
+    }
+    console.log("[radar] 代理模式:", settings.proxyMode, settings.proxyRules || "");
+  } catch (error) {
+    console.warn("[radar] 设置代理失败", error);
+  }
 }
 
 /* ---------- 自动更新 ---------- */
@@ -530,6 +551,7 @@ async function bootstrap(): Promise<void> {
   });
   await service.init();
   currentSettings = service.store.settings;
+  await applyProxy(currentSettings);
   await setupUpdater();
 
   controller = new RadarController(

@@ -225,6 +225,15 @@ docs/ARCHITECTURE.md  架构与数据流
 - 只请求 Steam 商店的公开接口（`store.steampowered.com`），不登录、不需要 API Key、不上传任何数据
 - 封面图缓存在 `image-cache/`，断网时直接读本地文件
 
+## 连不上 Steam / 一直提示「无法获取折扣」
+
+先升级到 1.4.8 或更新版本（主进程已改用 Chromium 网络栈，会跟随系统代理）。如果仍然失败：
+
+1. 打开「设置 → 网络」
+2. 代理模式选 **手动代理**，地址填代理软件的本地端口，例如 Clash 默认的 `http://127.0.0.1:7890`
+3. 如果代理是 TUN 模式或已设为系统代理，选 **跟随系统** 即可
+4. 错误提示现在会带具体原因，例如 `HTTP 403`、`ERR_PROXY_CONNECTION_FAILED`、`ERR_NAME_NOT_RESOLVED`，可据此判断是代理没开、端口不对还是被 Steam 拒绝
+
 ## 已知限制
 
 - Steam 没有官方「折扣列表」API，折扣数据解析自商店搜索页的服务端渲染 HTML；Steam 改版时可能需要更新 `packages/core/src/steam.ts` 里的解析规则（已有单测覆盖）
