@@ -1965,22 +1965,16 @@ textarea.note-input {
 }
 
 .rail__watermark {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 4px;
-  width: 100%;
-  margin-bottom: 14px;
+  /* 单列竖排：字号随窗口高度自适应，保证「STEAM DEAL RADAR」完整不截断 */
+  writing-mode: vertical-rl;
+  flex: none;
+  margin-bottom: 12px;
+  font-size: clamp(12px, calc((100vh - 380px) / 17), 40px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
   color: var(--muted);
-  opacity: 0.3;
+  opacity: 0.28;
   user-select: none;
   pointer-events: none;
-}
-
-.rail__watermark span {
-  writing-mode: vertical-rl;
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  line-height: 1;
 }
