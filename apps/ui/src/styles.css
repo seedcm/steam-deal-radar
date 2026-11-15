@@ -1965,14 +1965,22 @@ textarea.note-input {
 }
 
 .rail__watermark {
-  writing-mode: vertical-rl;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
   margin-bottom: 14px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  line-height: 1;
   color: var(--muted);
-  opacity: 0.35;
+  opacity: 0.3;
   user-select: none;
   pointer-events: none;
+}
+
+.rail__watermark span {
+  writing-mode: vertical-rl;
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
 }
