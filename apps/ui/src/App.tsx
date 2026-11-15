@@ -254,12 +254,10 @@ export default function App() {
         </div>
         <div className="rail__spacer" />
         <div className="rail__watermark" aria-hidden="true">
-          <span>STEAM</span>
-          <span>DEAL</span>
-          <span>RADAR</span>
+          STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.4.3"}
+          v{radar.appInfo?.version ?? "1.4.4"}
         </div>
       </nav>
 
