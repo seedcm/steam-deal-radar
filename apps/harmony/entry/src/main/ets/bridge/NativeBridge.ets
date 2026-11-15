@@ -44,7 +44,7 @@ import { Notifier } from '../notify/Notifier';
 import { scheduleBackgroundRefresh } from '../work/RefreshWork';
 
 /** 允许 openExternal 打开的白名单域名，与 core/controller.ts 一致 */
-const ALLOWED_HOSTS: string[] = ['store.steampowered.com', 'steamcommunity.com', 'help.steampowered.com'];
+const ALLOWED_HOSTS: string[] = ['store.steampowered.com', 'steamcommunity.com', 'help.steampowered.com', 'github.com'];
 /** 页面未就绪时最多缓存的事件数量 */
 const EVENT_QUEUE_LIMIT: number = 32;
 /** 页面未就绪时最多缓存的回调数量 */

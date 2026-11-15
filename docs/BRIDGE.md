@@ -100,6 +100,6 @@ renderer                    host                         Steam
 
 ## 安全约定
 
-- `openExternal` 只接受 `https://` 且域名在白名单内，其它直接抛错
+- `openExternal` 只接受 `https://` 且域名在白名单内（Steam 商店/社区 + `github.com`），其它直接抛错
 - 界面加载的页面固定，`will-navigate` 拦截站外跳转
 - 不向页面暴露文件系统、shell、任意 HTTP 能力

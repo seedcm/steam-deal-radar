@@ -1829,3 +1829,18 @@ textarea.note-input {
 .review-item__translation.is-error p {
   color: var(--danger);
 }
+
+.license-text {
+  margin: 10px 0 0;
+  padding: 12px;
+  max-height: 240px;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text-soft);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}

@@ -392,6 +392,16 @@ async function devCaptureSequence(): Promise<void> {
   await click(".rail__item:nth-child(3)");
   await wait(700);
   await shoot("03-settings");
+  if (mainWindow) {
+    await mainWindow.webContents.executeJavaScript(
+      `(() => { const panels = document.querySelectorAll(".panel"); panels[panels.length - 1]?.scrollIntoView({ block: "start" }); return true; })()`,
+      true,
+    );
+  }
+  await wait(500);
+  await clickText("查看协议");
+  await wait(500);
+  await shoot("03b-about");
   await click(".rail__item:nth-child(1)");
   await wait(500);
   await click(".card");

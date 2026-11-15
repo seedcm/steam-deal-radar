@@ -3,9 +3,12 @@ import type { AppInfo, Settings, UpdateStatus } from "@radar/core";
 import { REGIONS, formatDateTime, formatRelativeTime } from "@radar/core";
 import {
   BellRing,
+  Bug,
   ChevronDown,
   Database,
   Download,
+  FileText,
+  Github,
   Globe2,
   Info,
   RefreshCw,
@@ -29,6 +32,32 @@ interface SettingsViewProps {
   onExport: () => void;
   onImport: (json: string) => Promise<void>;
 }
+
+const REPO_URL = "https://github.com/seedcm/steam-deal-radar";
+const RELEASES_URL = `${REPO_URL}/releases/latest`;
+const ISSUES_URL = `${REPO_URL}/issues`;
+
+const LICENSE_TEXT = `MIT License
+
+Copyright (c) 2026 Steam Deal Radar
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`;
 
 const REFRESH_OPTIONS = [
   { value: 15, label: "每 15 分钟" },
@@ -72,6 +101,7 @@ export function SettingsView({
   onImport,
 }: SettingsViewProps) {
   const [importOpen, setImportOpen] = useState(false);
+  const [showLicense, setShowLicense] = useState(false);
   const [importText, setImportText] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -365,6 +395,36 @@ export function SettingsView({
           </div>
         </div>
 
+        <Field title="许可协议" desc="MIT License：可以自由使用、修改、分发，需保留版权与许可声明">
+          <button type="button" className="btn btn--sm" onClick={() => setShowLicense((value) => !value)} aria-expanded={showLicense}>
+            <FileText size={13} />
+            {showLicense ? "收起协议" : "查看协议"}
+          </button>
+        </Field>
+
+        {showLicense && <pre className="license-text">{LICENSE_TEXT}</pre>}
+
+        <Field title="项目仓库" desc={REPO_URL}>
+          <button type="button" className="btn btn--sm" onClick={() => void api.openExternal(REPO_URL)}>
+            <Github size={13} />
+            打开仓库
+          </button>
+        </Field>
+
+        <Field title="下载最新版本" desc={`${RELEASES_URL}（Windows 安装包 / Linux AppImage）`}>
+          <button type="button" className="btn btn--sm" onClick={() => void api.openExternal(RELEASES_URL)}>
+            <Download size={13} />
+            打开发布页
+          </button>
+        </Field>
+
+        <Field title="问题反馈" desc="使用中遇到问题或有建议，可以在仓库里提交 Issue">
+          <button type="button" className="btn btn--sm" onClick={() => void api.openExternal(ISSUES_URL)}>
+            <Bug size={13} />
+            提交 Issue
+          </button>
+        </Field>
+
         <Field
           title="客户端更新"
           desc={
@@ -404,6 +464,7 @@ export function SettingsView({
 
         <p className="hint">
           数据来自 Steam 商店公开接口，与 Valve 无隶属关系。所有数据只保存在你的设备上，不会上传到任何服务器。
+          评价翻译由第三方免费服务提供，点击翻译时仅发送该条评价原文。
         </p>
       </section>
     </div>

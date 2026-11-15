@@ -19,9 +19,10 @@ export interface ControllerHost {
   capabilities?: Partial<AppInfo["capabilities"]>;
 }
 
-const ALLOWED_HOSTS = ["store.steampowered.com", "steamcommunity.com", "help.steampowered.com"];
+const ALLOWED_HOSTS = ["store.steampowered.com", "steamcommunity.com", "help.steampowered.com", "github.com"];
 
-function safeUrl(raw: string): string | null {
+/** 只允许 https + 白名单域名（含子域），避免打开任意外部链接 */
+export function isAllowedExternalUrl(raw: string): string | null {
   try {
     const url = new URL(raw);
     if (url.protocol !== "https:") return null;
@@ -112,7 +113,7 @@ export class RadarController {
       }
       case "openExternal": {
         const { url } = payload as { url: string };
-        const target = safeUrl(url);
+        const target = isAllowedExternalUrl(url);
         if (!target) throw new Error("不支持打开的链接");
         await this.host.openExternal(target);
         return undefined;
