@@ -257,7 +257,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.4.6"}
+          v{radar.appInfo?.version ?? "1.4.7"}
         </div>
       </nav>
 
