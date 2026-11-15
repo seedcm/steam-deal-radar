@@ -1,0 +1,20 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Steam 折扣雷达 HarmonyOS 端"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Steam 折扣雷达"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Steam 折扣雷达"
+    },
+    {
+      "name": "RefreshWork_desc",
+      "value": "后台刷新 Steam 折扣并发送降价提醒"
+    }
+  ]
+}

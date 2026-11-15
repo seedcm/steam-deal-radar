@@ -1,0 +1,26 @@
+{
+  "name": "steam-deal-radar",
+  "version": "1.3.1",
+  "private": true,
+  "description": "Steam 折扣雷达 — 自动刷新、离线可查、关注提醒的跨平台 Steam 打折追踪器",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/ui",
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build -w @radar/core && npm run build -w @radar/ui",
+    "test": "npm run test -w @radar/core",
+    "typecheck": "npm run typecheck -w @radar/core && npm run typecheck -w @radar/ui && npm run typecheck -w @radar/desktop",
+    "dev:ui": "npm run dev -w @radar/ui",
+    "dev:desktop": "npm run build && npm run dev -w @radar/desktop",
+    "dist:linux": "npm run build && npm run dist:linux -w @radar/desktop",
+    "dist:win": "npm run build && npm run dist:win -w @radar/desktop",
+    "dist:dir": "npm run build && npm run dist:dir -w @radar/desktop",
+    "sync:harmony": "npm run build && node scripts/sync-harmony.mjs"
+  }
+}

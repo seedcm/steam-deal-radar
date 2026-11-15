@@ -1,0 +1,63 @@
+appId: com.steamdealradar.app
+productName: Steam 折扣雷达
+copyright: Copyright © 2026 Steam Deal Radar
+
+directories:
+  output: ../../release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - ui/**/*
+  - build/icon.png
+  - build/tray.png
+  - package.json
+
+asar: true
+asarUnpack:
+  - build/*.png
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: SteamDealRadar-${version}-${arch}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  # 关闭提权 + 不打包 elevate.exe：只装到当前用户目录，Linux 上交叉打包也不需要 wine
+  allowElevation: false
+  packElevateHelper: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Steam 折扣雷达
+  deleteAppDataOnUninstall: false
+
+linux:
+  # deb 需要系统里有 libcrypt.so.1（Arch 默认没有），默认只打 AppImage；
+  # 需要 deb 时运行：npx electron-builder --linux AppImage deb
+  target:
+    - target: AppImage
+      arch: [x64]
+  icon: build/icon.png
+  executableName: steam-deal-radar
+  syncDesktopName: true
+  artifactName: steam-deal-radar-${version}-${arch}.${ext}
+  category: Utility
+  maintainer: Steam Deal Radar <radar@example.com>
+  synopsis: Steam 折扣追踪与提醒
+  description: 自动刷新 Steam 折扣、离线查看、关注列表与到价提醒。
+  desktop:
+    entry:
+      Name: Steam 折扣雷达
+      Comment: 追踪 Steam 折扣并提醒你
+
+# 自动更新：把 owner/repo 换成你自己的 GitHub 仓库后，CI 会生成 latest.yml
+publish:
+  provider: github
+  owner: seedcm
+  repo: steam-deal-radar
+  releaseType: release

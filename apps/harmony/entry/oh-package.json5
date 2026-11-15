@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "Steam 折扣雷达 HarmonyOS 端主模块",
+  "main": "",
+  "author": "Steam Deal Radar",
+  "license": "MIT",
+  "dependencies": {}
+}
