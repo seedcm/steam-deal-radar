@@ -6,6 +6,7 @@
 export type SortKey = "discount" | "price" | "name" | "review";
 export type PlatformFilter = "all" | "windows" | "linux";
 export type ThemeMode = "dark" | "light";
+export type TranslationProvider = "builtin" | "libretranslate" | "openai";
 export type NotifyKind = "target" | "newlow" | "sale" | "digest";
 
 export interface Platforms {
@@ -98,6 +99,13 @@ export interface Settings {
   closeToTray: boolean;
   autoLaunch: boolean;
   autoUpdateApp: boolean;
+  /** 翻译源：内置免费 / LibreTranslate 兼容 / OpenAI 兼容 */
+  translationProvider: TranslationProvider;
+  translationEndpoint: string;
+  translationApiKey: string;
+  translationModel: string;
+  /** 默认翻译目标语言，如 zh-CN / en / ja */
+  translationTarget: string;
 }
 
 export interface AppNotification {
@@ -145,8 +153,14 @@ export interface StorageAdapter {
   write(data: string): Promise<void>;
 }
 
+export interface HttpRequestInit {
+  method?: "GET" | "POST";
+  headers?: Record<string, string>;
+  body?: string;
+}
+
 export interface HttpClient {
-  (url: string): Promise<string>;
+  (url: string, init?: HttpRequestInit): Promise<string>;
 }
 
 export type ReviewType = "positive" | "negative";
@@ -196,6 +210,17 @@ export const REGIONS: Array<{ code: string; label: string; currency: string; lan
   { code: "gb", label: "英国", currency: "GBP", language: "english" },
   { code: "ru", label: "俄罗斯", currency: "RUB", language: "russian" },
   { code: "br", label: "巴西", currency: "BRL", language: "brazilian" },
+];
+
+export const TRANSLATION_TARGETS: Array<{ code: string; label: string }> = [
+  { code: "zh-CN", label: "中文" },
+  { code: "en", label: "English" },
+  { code: "ja", label: "日本語" },
+  { code: "ko", label: "한국어" },
+  { code: "ru", label: "Русский" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "es", label: "Español" },
 ];
 
 export const SORT_LABELS: Record<SortKey, string> = {

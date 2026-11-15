@@ -2,9 +2,14 @@ import { regionCurrency } from "./format";
 import {
   MAX_TRANSLATE_CHUNKS,
   buildGoogleUrl,
+  buildLibreTranslateBody,
   buildMyMemoryUrl,
+  buildOpenAIBody,
+  normalizeOpenAIEndpoint,
   parseGoogleTranslate,
+  parseLibreTranslate,
   parseMyMemory,
+  parseOpenAIResponse,
   splitForTranslation,
   type TranslationResult,
 } from "./translate";
@@ -279,10 +284,16 @@ export class RadarService {
     return parseReviewsHtml(html);
   }
 
-  /** 免费在线翻译：MyMemory 为主，Google 备用（都需要联网） */
+  /** 翻译：默认用内置免费引擎（MyMemory / Google），也可用用户配置的 LibreTranslate / OpenAI 兼容接口 */
   async translate(text: string, target = "zh-CN"): Promise<TranslationResult> {
     const source = text.trim();
     if (!source) return { text: "", engine: "none" };
+
+    const provider = this.store.settings.translationProvider;
+    if (provider === "libretranslate" || provider === "openai") {
+      return this.translateWithCustomProvider(source, target, provider);
+    }
+
     const chunks = splitForTranslation(source).slice(0, MAX_TRANSLATE_CHUNKS);
 
     try {
@@ -303,6 +314,47 @@ export class RadarService {
       console.warn("[radar] 翻译失败", primaryError);
       throw new Error("免费翻译服务暂时不可用，请检查网络后再试");
     }
+  }
+
+  /** 用户自定义翻译源：LibreTranslate（本地/自建）或 OpenAI 兼容接口（Ollama、LM Studio、付费 API） */
+  private async translateWithCustomProvider(
+    source: string,
+    target: string,
+    provider: "libretranslate" | "openai",
+  ): Promise<TranslationResult> {
+    const settings = this.store.settings;
+    const endpoint = settings.translationEndpoint.trim();
+    if (!endpoint) throw new Error("请先在「设置 → 翻译」里填写自定义翻译接口地址");
+
+    const chunks = splitForTranslation(source, 1500).slice(0, 4);
+    const parts: string[] = [];
+
+    for (const chunk of chunks) {
+      if (provider === "libretranslate") {
+        const body = buildLibreTranslateBody(chunk, target, settings.translationApiKey || undefined);
+        const response = await this.http(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+        });
+        const parsed = parseLibreTranslate(response);
+        if (!parsed) throw new Error("LibreTranslate 返回了无法识别的内容，请检查接口地址");
+        parts.push(parsed);
+      } else {
+        const headers: Record<string, string> = { "content-type": "application/json" };
+        if (settings.translationApiKey) headers.authorization = `Bearer ${settings.translationApiKey}`;
+        const body = buildOpenAIBody(chunk, target, settings.translationModel);
+        const response = await this.http(normalizeOpenAIEndpoint(endpoint), { method: "POST", headers, body });
+        const parsed = parseOpenAIResponse(response);
+        if (!parsed) throw new Error("OpenAI 兼容接口返回了无法识别的内容，请检查地址、模型或 Key");
+        parts.push(parsed);
+      }
+    }
+
+    return {
+      text: parts.join("\n"),
+      engine: provider === "libretranslate" ? "LibreTranslate" : "OpenAI 兼容",
+    };
   }
 
   /** 打开详情时按需拉取简介等信息 */

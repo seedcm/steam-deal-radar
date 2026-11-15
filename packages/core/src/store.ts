@@ -31,6 +31,11 @@ export const DEFAULT_SETTINGS: Settings = {
   closeToTray: true,
   autoLaunch: false,
   autoUpdateApp: true,
+  translationProvider: "builtin",
+  translationEndpoint: "",
+  translationApiKey: "",
+  translationModel: "",
+  translationTarget: "zh-CN",
 };
 
 export interface PersistedState {
@@ -230,7 +235,12 @@ export class RadarStore {
   }
 
   exportState(): string {
-    return JSON.stringify({ ...this.state, exportedAt: this.now() }, null, 2);
+    // 导出备份不包含翻译 API Key，避免把密钥写进文件/剪贴板
+    return JSON.stringify(
+      { ...this.state, settings: { ...this.state.settings, translationApiKey: "" }, exportedAt: this.now() },
+      null,
+      2,
+    );
   }
 
   async importState(json: string): Promise<void> {

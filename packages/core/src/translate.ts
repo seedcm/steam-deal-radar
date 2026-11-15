@@ -83,3 +83,93 @@ export function parseGoogleTranslate(body: string): string | null {
     return null;
   }
 }
+
+/* ---------- 自定义翻译源 ---------- */
+
+/** LibreTranslate 用两位语言码；zh-CN -> zh */
+export function toLibreTarget(target: string): string {
+  const lower = target.toLowerCase();
+  if (lower.startsWith("zh")) return "zh";
+  return lower.split("-")[0] ?? "en";
+}
+
+export function targetName(target: string): string {
+  switch (target.toLowerCase()) {
+    case "zh-cn":
+    case "zh":
+      return "简体中文";
+    case "en":
+      return "English";
+    case "ja":
+      return "日本語";
+    case "ko":
+      return "한국어";
+    case "ru":
+      return "Русский";
+    case "fr":
+      return "Français";
+    case "de":
+      return "Deutsch";
+    case "es":
+      return "Español";
+    default:
+      return target;
+  }
+}
+
+export function buildLibreTranslateBody(text: string, target: string, apiKey?: string): string {
+  const payload: Record<string, string> = {
+    q: text,
+    source: "auto",
+    target: toLibreTarget(target),
+    format: "text",
+  };
+  if (apiKey) payload.api_key = apiKey;
+  return JSON.stringify(payload);
+}
+
+export function parseLibreTranslate(body: string): string | null {
+  try {
+    const json = JSON.parse(body) as { translatedText?: unknown };
+    const text = typeof json.translatedText === "string" ? json.translatedText : "";
+    return text.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** 允许用户填 https://api.openai.com/v1 或完整的 /chat/completions 地址 */
+export function normalizeOpenAIEndpoint(endpoint: string): string {
+  const trimmed = endpoint.trim().replace(/\/+$/, "");
+  if (!trimmed) return trimmed;
+  return /\/chat\/completions$/i.test(trimmed) ? trimmed : `${trimmed}/chat/completions`;
+}
+
+export function buildOpenAIBody(text: string, target: string, model?: string): string {
+  const chosen = model?.trim() || "gpt-4o-mini";
+  return JSON.stringify({
+    model: chosen,
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: `You are a translation engine. Translate the user's text into ${targetName(target)}. Output only the translation, without explanations or quotes.`,
+      },
+      { role: "user", content: text },
+    ],
+  });
+}
+
+export function parseOpenAIResponse(body: string): string | null {
+  try {
+    const json = JSON.parse(body) as {
+      choices?: Array<{ message?: { content?: unknown } }>;
+      error?: { message?: string };
+    };
+    if (json.error?.message) return null;
+    const content = json.choices?.[0]?.message?.content;
+    return typeof content === "string" ? content.trim() || null : null;
+  } catch {
+    return null;
+  }
+}

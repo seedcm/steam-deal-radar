@@ -144,7 +144,7 @@ export function useRadar() {
       setUpdate(status);
       if (status.phase === "none") toast("已是最新版本", "success");
       if (status.phase === "error") toast(status.message ?? "检查更新失败", "error");
-      if (status.phase === "unsupported") toast("当前平台由应用商店负责更新", "info");
+      if (status.phase === "unsupported") toast(status.message ?? "当前平台不支持应用内更新", "info");
       return status;
     } catch (error) {
       toast(error instanceof Error ? error.message : "检查更新失败", "error");

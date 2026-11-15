@@ -8,19 +8,19 @@ import {
   type Deal,
   type SearchHit,
 } from "@radar/core";
-import { AlertTriangle, RefreshCw, Settings2, Sparkles, Star, Tag, WifiOff } from "lucide-react";
+import { AlertTriangle, Info, RefreshCw, Settings2, Sparkles, Star, Tag, WifiOff } from "lucide-react";
 import { useRadar } from "./hooks/useRadar";
 import { TopBar } from "./components/TopBar";
-import { FilterBar } from "./components/FilterBar";
 import { DealGrid } from "./components/DealGrid";
 import { WatchList } from "./components/WatchList";
 import { SettingsView } from "./components/SettingsView";
+import { AboutView } from "./components/AboutView";
 import { DetailPanel } from "./components/DetailPanel";
 import { Toasts } from "./components/Toasts";
 import { DealCard } from "./components/DealCard";
 import { api } from "./lib/client";
 
-type View = "deals" | "watch" | "settings";
+type View = "deals" | "watch" | "settings" | "about";
 
 function useOnline(): boolean {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
@@ -224,7 +224,8 @@ export default function App() {
         ? `${snapshot?.watchlist.length ?? 0} 个关注 · ${offline ? "离线查看" : "自动刷新中"}`
         : `v${radar.appInfo?.version ?? "1.2.0"} · ${REGIONS.find((item) => item.code === settings?.country)?.label ?? "中国"}`;
 
-  const title = view === "deals" ? "折扣雷达" : view === "watch" ? "我的关注" : "设置";
+  const title =
+    view === "deals" ? "折扣雷达" : view === "watch" ? "我的关注" : view === "settings" ? "设置" : "关于";
 
   return (
     <div className="app">
@@ -246,9 +247,15 @@ export default function App() {
             <Settings2 size={18} />
             <span>设置</span>
           </button>
+          <button type="button" className={`rail__item ${view === "about" ? "is-active" : ""}`} onClick={() => setView("about")}>
+            <Info size={18} />
+            <span>关于</span>
+          </button>
         </div>
         <div className="rail__spacer" />
-        <div className="rail__foot">STEAM DEAL RADAR</div>
+        <div className="rail__foot" title="当前版本">
+          v{radar.appInfo?.version ?? "1.4.0"}
+        </div>
       </nav>
 
       <main className="main">
@@ -257,9 +264,13 @@ export default function App() {
           subtitle={subtitle}
           query={query}
           onQuery={setQuery}
-          showSearch={view !== "settings"}
+          showSearch={view === "deals" || view === "watch"}
           refreshing={refreshing}
           onRefresh={() => void radar.refresh(true)}
+          settings={view === "deals" ? settings ?? null : null}
+          watchOnly={watchOnly}
+          onToggleWatchOnly={() => setWatchOnly((value) => !value)}
+          onChangeSettings={changeSettings}
         />
 
         <div className="content">
@@ -289,16 +300,6 @@ export default function App() {
 
           {view === "deals" && (
             <>
-              {settings && (
-                <FilterBar
-                  settings={settings}
-                  total={deals.length}
-                  shown={filtered.length}
-                  watchOnly={watchOnly}
-                  onToggleWatchOnly={() => setWatchOnly((value) => !value)}
-                  onChange={changeSettings}
-                />
-              )}
 
               {query.trim().length >= 2 && (shownRemote.length > 0 || remoteLoading) && (
                 <>
@@ -362,17 +363,25 @@ export default function App() {
             />
           )}
 
+          {view === "about" && (
+            <AboutView
+              appInfo={radar.appInfo}
+              update={radar.update}
+              onCheckUpdate={() => void radar.checkUpdate()}
+              onInstallUpdate={() => void api.installUpdate().catch((error) => radar.toast(error instanceof Error ? error.message : "更新失败", "error"))}
+              onOpen={(url) => void api.openExternal(url)}
+            />
+          )}
+
           {view === "settings" && settings && (
             <SettingsView
               settings={settings}
               appInfo={radar.appInfo}
-              update={radar.update}
               watchCount={snapshot?.watchlist.length ?? 0}
               dealCount={deals.length}
               lastRefreshAt={lastRefresh}
               onChange={changeSettings}
               onRefresh={() => void radar.refresh(true)}
-              onCheckUpdate={() => void radar.checkUpdate()}
               onTestNotify={() => void api.testNotification()}
               onExport={() => void radar.exportData()}
               onImport={radar.importData}
@@ -387,6 +396,7 @@ export default function App() {
           entry={selectedEntry}
           currency={currency}
           isLow={lowIds.has(selected.appId)}
+          translationTarget={settings?.translationTarget}
           history={snapshot?.history[String(selected.appId)] ?? []}
           onClose={() => setSelected(null)}
           onToggleWatch={(deal) => void radar.toggleWatch(deal)}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GameReview, ReviewType } from "@radar/core";
-import { filterReviews } from "@radar/core";
+import { TRANSLATION_TARGETS, filterReviews } from "@radar/core";
 import { ChevronDown, Languages, Laugh, Loader2, MessageSquare, RefreshCw, ThumbsUp } from "lucide-react";
 import { api } from "../lib/client";
 
@@ -8,6 +8,8 @@ interface ReviewListProps {
   appId: number;
   summary?: string;
   reviewPercent?: number;
+  /** 默认翻译目标，来自设置 */
+  defaultTarget?: string;
 }
 
 interface TranslationState {
@@ -55,7 +57,7 @@ function dedupe(list: GameReview[]): GameReview[] {
 }
 
 /** 评价详情：默认国区，按语言切换；非中文评价可一键免费翻译 */
-export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
+export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: ReviewListProps) {
   const [reviews, setReviews] = useState<GameReview[]>([]);
   const [next, setNext] = useState<Record<string, string> | undefined>();
   const [loading, setLoading] = useState(false);
@@ -63,6 +65,7 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
   const [types, setTypes] = useState<ReviewType[]>(["positive", "negative"]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [language, setLanguage] = useState("schinese");
+  const [target, setTarget] = useState(defaultTarget || "zh-CN");
   const [translations, setTranslations] = useState<Record<string, TranslationState>>({});
 
   const load = useCallback(
@@ -92,7 +95,7 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
   const filtered = useMemo(() => filterReviews(reviews, types), [reviews, types]);
   const upCount = useMemo(() => reviews.filter((review) => review.votedUp).length, [reviews]);
   const downCount = reviews.length - upCount;
-  const translateVisible = language !== "schinese";
+  const targetLabel = TRANSLATION_TARGETS.find((item) => item.code === target)?.label ?? target;
 
   const toggleType = (type: ReviewType) => {
     setTypes((previous) => {
@@ -122,7 +125,7 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
     }
     setTranslations((previous) => ({ ...previous, [review.id]: { loading: true, shown: true } }));
     try {
-      const result = await api.translate(review.text);
+      const result = await api.translate(review.text, target);
       setTranslations((previous) => ({
         ...previous,
         [review.id]: { text: result.text, engine: result.engine, shown: true },
@@ -161,7 +164,27 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
           </select>
           <ChevronDown size={13} />
         </div>
-        <span className="review-panel__lang-hint">默认国区；切换后按该语言重新加载</span>
+        <span className="review-panel__lang-hint" title="切换后按该语言重新加载">默认国区</span>
+        <span className="review-panel__target">
+          <span>翻译为</span>
+          <div className="select">
+          <select
+            value={target}
+            aria-label="翻译目标语言"
+            onChange={(event) => {
+              setTarget(event.target.value);
+              setTranslations({});
+            }}
+          >
+            {TRANSLATION_TARGETS.map((item) => (
+              <option key={item.code} value={item.code}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+            <ChevronDown size={13} />
+          </div>
+        </span>
       </div>
 
       <div className="review-panel__filters">
@@ -196,7 +219,7 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
 
       <p className="review-panel__note">
         「特别好评」「好评如潮」是 Steam 对整款游戏的总体评价；单条评价只区分推荐（好评）与不推荐（差评）。
-        {translateVisible && " 非国区评价可点「翻译成中文」，翻译由免费在线服务（MyMemory / Google）提供，原文会发送给该服务，且可能受每日额度限制。"}
+        {" 任意评价都可以翻译成所选语言；翻译由你配置的翻译源提供（默认 MyMemory / Google 免费引擎），原文会发送给该服务，且可能受每日额度限制。"}
       </p>
 
       {error && (
@@ -254,7 +277,9 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
 
               {translation?.shown && (translation.text || translation.error) && (
                 <div className={`review-item__translation ${translation.error ? "is-error" : ""}`}>
-                  <span>{translation.error ? "翻译失败" : `机器翻译 · ${translation.engine ?? "在线"}`}</span>
+                  <span>
+                    {translation.error ? "翻译失败" : `机器翻译 · ${translation.engine ?? "在线"} · 译为${targetLabel}`}
+                  </span>
                   <p>{translation.error ?? translation.text}</p>
                 </div>
               )}
@@ -269,7 +294,7 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
                 <span>
                   <MessageSquare size={11} /> {review.comments.toLocaleString("zh-CN")}
                 </span>
-                {translateVisible && review.text && (
+                {review.text && (
                   <button
                     type="button"
                     className="review-item__translate"
@@ -285,7 +310,7 @@ export function ReviewList({ appId, summary, reviewPercent }: ReviewListProps) {
                     ) : translation?.text ? (
                       translation.shown ? "隐藏翻译" : "显示翻译"
                     ) : (
-                      "翻译成中文"
+                      `翻译为${targetLabel}`
                     )}
                   </button>
                 )}

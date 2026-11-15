@@ -13,6 +13,7 @@ interface DetailPanelProps {
   entry?: WatchEntry;
   currency: string;
   isLow: boolean;
+  translationTarget?: string;
   history: PricePoint[];
   onClose: () => void;
   onToggleWatch: (deal: Deal) => void;
@@ -26,6 +27,7 @@ export function DetailPanel({
   entry,
   currency,
   isLow,
+  translationTarget,
   history,
   onClose,
   onToggleWatch,
@@ -163,7 +165,14 @@ export function DetailPanel({
             </button>
           </div>
 
-          {showReviews && <ReviewList appId={deal.appId} summary={deal.reviewSummary} reviewPercent={deal.reviewPercent} />}
+          {showReviews && (
+            <ReviewList
+              appId={deal.appId}
+              summary={deal.reviewSummary}
+              reviewPercent={deal.reviewPercent}
+              defaultTarget={translationTarget}
+            />
+          )}
 
           <div className="field-block">
             <div className="field-block__label">

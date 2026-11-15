@@ -136,7 +136,7 @@ class WebBridge implements RadarBridge {
       read: async () => localStorage.getItem("radar-state"),
       write: async (data) => localStorage.setItem("radar-state", data),
     };
-    const http = async (url: string): Promise<string> => {
+    const http = async (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }): Promise<string> => {
       const target = url
         .replace("https://store.steampowered.com", "/steam-proxy")
         .replace("https://steamcommunity.com", "/community-proxy")
@@ -144,7 +144,9 @@ class WebBridge implements RadarBridge {
         .replace("https://api.mymemory.translated.net", "/translate-proxy")
         .replace("https://translate.googleapis.com", "/google-translate-proxy");
       const response = await fetch(target, {
-        headers: { "accept-language": "zh-CN,zh;q=0.9" },
+        method: init?.method ?? "GET",
+        body: init?.body,
+        headers: { "accept-language": "zh-CN,zh;q=0.9", ...(init?.headers ?? {}) },
       });
       if (!response.ok) throw new Error(`Steam 返回 HTTP ${response.status}`);
       return await response.text();

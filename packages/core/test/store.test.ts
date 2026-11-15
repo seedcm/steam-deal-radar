@@ -77,6 +77,14 @@ describe("RadarStore", () => {
     expect(next.minDiscount).toBe(0);
   });
 
+  it("导出备份不包含翻译 API Key", async () => {
+    const store = new RadarStore(new MemoryAdapter(), () => NOW);
+    store.updateSettings({ translationApiKey: "sk-secret-value" });
+    const json = store.exportState();
+    expect(json).not.toContain("sk-secret-value");
+    expect(JSON.parse(json).settings.translationApiKey).toBe("");
+  });
+
   it("导出后可完整导入", async () => {
     const adapter = new MemoryAdapter();
     const store = new RadarStore(adapter, () => NOW);

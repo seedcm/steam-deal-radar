@@ -1,18 +1,16 @@
 import { useRef, useState } from "react";
-import type { AppInfo, Settings, UpdateStatus } from "@radar/core";
-import { REGIONS, formatDateTime, formatRelativeTime } from "@radar/core";
+import type { AppInfo, Settings, TranslationProvider } from "@radar/core";
+import { REGIONS, TRANSLATION_TARGETS, formatDateTime, formatRelativeTime } from "@radar/core";
 import {
   BellRing,
-  Bug,
   ChevronDown,
   Database,
   Download,
-  FileText,
-  Github,
   Globe2,
   Info,
+  Languages,
+  Loader2,
   RefreshCw,
-  ShieldCheck,
   Upload,
   Wand2,
 } from "lucide-react";
@@ -21,43 +19,15 @@ import { api } from "../lib/client";
 interface SettingsViewProps {
   settings: Settings;
   appInfo: AppInfo | null;
-  update: UpdateStatus;
   watchCount: number;
   dealCount: number;
   lastRefreshAt: number | null;
   onChange: (patch: Partial<Settings>) => void;
   onRefresh: () => void;
-  onCheckUpdate: () => void;
   onTestNotify: () => void;
   onExport: () => void;
   onImport: (json: string) => Promise<void>;
 }
-
-const REPO_URL = "https://github.com/seedcm/steam-deal-radar";
-const RELEASES_URL = `${REPO_URL}/releases/latest`;
-const ISSUES_URL = `${REPO_URL}/issues`;
-
-const LICENSE_TEXT = `MIT License
-
-Copyright (c) 2026 Steam Deal Radar
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.`;
 
 const REFRESH_OPTIONS = [
   { value: 15, label: "每 15 分钟" },
@@ -89,19 +59,18 @@ function Field({ title, desc, children }: { title: string; desc?: string; childr
 export function SettingsView({
   settings,
   appInfo,
-  update,
   watchCount,
   dealCount,
   lastRefreshAt,
   onChange,
   onRefresh,
-  onCheckUpdate,
   onTestNotify,
   onExport,
   onImport,
 }: SettingsViewProps) {
   const [importOpen, setImportOpen] = useState(false);
-  const [showLicense, setShowLicense] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
   const [importText, setImportText] = useState("");
   const [importBusy, setImportBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -278,6 +247,121 @@ export function SettingsView({
       <section className="panel">
         <div className="panel__head">
           <span className="panel__icon">
+            <Languages size={16} />
+          </span>
+          <div>
+            <h2>翻译</h2>
+            <p>评价翻译默认用内置免费引擎，也可以换成自己的翻译源</p>
+          </div>
+        </div>
+
+        <Field title="翻译源" desc="内置免费无需配置；自定义源适合本地翻译工具或付费 API">
+          <div className="select">
+            <select
+              value={settings.translationProvider}
+              aria-label="翻译源"
+              onChange={(event) => onChange({ translationProvider: event.target.value as TranslationProvider })}
+            >
+              <option value="builtin">内置免费（MyMemory / Google）</option>
+              <option value="libretranslate">LibreTranslate（本地 / 自建）</option>
+              <option value="openai">OpenAI 兼容（Ollama / 付费 API）</option>
+            </select>
+            <ChevronDown size={13} />
+          </div>
+        </Field>
+
+        {settings.translationProvider !== "builtin" && (
+          <>
+            <Field
+              title="接口地址"
+              desc={
+                settings.translationProvider === "libretranslate"
+                  ? "例如 http://127.0.0.1:5000/translate"
+                  : "例如 https://api.openai.com/v1 或 http://127.0.0.1:11434/v1"
+              }
+            >
+              <input
+                className="text-input field-input"
+                value={settings.translationEndpoint}
+                placeholder={settings.translationProvider === "libretranslate" ? "http://127.0.0.1:5000/translate" : "https://api.openai.com/v1"}
+                onChange={(event) => onChange({ translationEndpoint: event.target.value })}
+                spellCheck={false}
+              />
+            </Field>
+
+            {settings.translationProvider === "openai" && (
+              <Field title="模型" desc="例如 gpt-4o-mini、qwen2.5、llama3.1">
+                <input
+                  className="text-input field-input"
+                  value={settings.translationModel}
+                  placeholder="gpt-4o-mini"
+                  onChange={(event) => onChange({ translationModel: event.target.value })}
+                  spellCheck={false}
+                />
+              </Field>
+            )}
+
+            <Field title="API Key" desc="本地服务通常不需要；只保存在本机，导出备份时不会包含">
+              <input
+                className="text-input field-input"
+                type="password"
+                value={settings.translationApiKey}
+                placeholder="可选"
+                onChange={(event) => onChange({ translationApiKey: event.target.value })}
+                spellCheck={false}
+              />
+            </Field>
+          </>
+        )}
+
+        <Field title="默认翻译目标" desc="评价详情里默认翻译成哪种语言">
+          <div className="select">
+            <select
+              value={settings.translationTarget}
+              aria-label="默认翻译目标"
+              onChange={(event) => onChange({ translationTarget: event.target.value })}
+            >
+              {TRANSLATION_TARGETS.map((target) => (
+                <option key={target.code} value={target.code}>
+                  {target.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={13} />
+          </div>
+        </Field>
+
+        <Field title="测试翻译" desc={testResult ?? "用「你好，世界」验证当前翻译源是否可用"}>
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={testing}
+            onClick={async () => {
+              setTesting(true);
+              setTestResult(null);
+              try {
+                const result = await api.translate("你好，世界", settings.translationTarget);
+                setTestResult(`「你好，世界」→「${result.text}」（${result.engine}）`);
+              } catch (error) {
+                setTestResult(error instanceof Error ? error.message : "翻译失败");
+              } finally {
+                setTesting(false);
+              }
+            }}
+          >
+            {testing ? <Loader2 size={13} className="spin" /> : null}
+            测试
+          </button>
+        </Field>
+
+        {appInfo?.platform === "harmony" && (
+          <p className="hint">自定义翻译源目前仅桌面端支持，鸿蒙端会使用内置免费引擎。</p>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="panel__head">
+          <span className="panel__icon">
             <Info size={16} />
           </span>
           <div>
@@ -305,7 +389,7 @@ export function SettingsView({
             <Field title="开机自动启动" desc="登录系统后在后台启动">
               <Switch on={settings.autoLaunch} onClick={() => onChange({ autoLaunch: !settings.autoLaunch })} label="开机自启" />
             </Field>
-            <Field title="自动更新客户端" desc={update.phase === "ready" ? "新版本已下载，重启后生效" : "启动时检查新版本"}>
+            <Field title="自动更新客户端" desc="启动时检查新版本；也可以在「关于」里手动检查并安装">
               <Switch on={settings.autoUpdateApp} onClick={() => onChange({ autoUpdateApp: !settings.autoUpdateApp })} label="自动更新" />
             </Field>
           </>
@@ -382,102 +466,6 @@ export function SettingsView({
         )}
       </section>
 
-      <section className="panel">
-        <div className="panel__head">
-          <span className="panel__icon">
-            <ShieldCheck size={16} />
-          </span>
-          <div>
-            <h2>关于</h2>
-            <p>
-              Steam 折扣雷达 v{appInfo?.version ?? "1.2.0"} · {platformName(appInfo?.platform)}
-            </p>
-          </div>
-        </div>
-
-        <Field title="许可协议" desc="MIT License：可以自由使用、修改、分发，需保留版权与许可声明">
-          <button type="button" className="btn btn--sm" onClick={() => setShowLicense((value) => !value)} aria-expanded={showLicense}>
-            <FileText size={13} />
-            {showLicense ? "收起协议" : "查看协议"}
-          </button>
-        </Field>
-
-        {showLicense && <pre className="license-text">{LICENSE_TEXT}</pre>}
-
-        <Field title="项目仓库" desc={REPO_URL}>
-          <button type="button" className="btn btn--sm" onClick={() => void api.openExternal(REPO_URL)}>
-            <Github size={13} />
-            打开仓库
-          </button>
-        </Field>
-
-        <Field title="下载最新版本" desc={`${RELEASES_URL}（Windows 安装包 / Linux AppImage）`}>
-          <button type="button" className="btn btn--sm" onClick={() => void api.openExternal(RELEASES_URL)}>
-            <Download size={13} />
-            打开发布页
-          </button>
-        </Field>
-
-        <Field title="问题反馈" desc="使用中遇到问题或有建议，可以在仓库里提交 Issue">
-          <button type="button" className="btn btn--sm" onClick={() => void api.openExternal(ISSUES_URL)}>
-            <Bug size={13} />
-            提交 Issue
-          </button>
-        </Field>
-
-        <Field
-          title="客户端更新"
-          desc={
-            update.phase === "checking"
-              ? "正在检查…"
-              : update.phase === "available"
-                ? `发现新版本 ${update.version ?? ""}`
-                : update.phase === "downloading"
-                  ? `正在下载 ${Math.round(update.percent ?? 0)}%`
-                  : update.phase === "ready"
-                    ? "已下载完成，重启即可安装"
-                    : update.phase === "unsupported"
-                      ? appInfo?.capabilities.autoUpdate
-                        ? "当前平台由系统或应用商店负责更新"
-                        : "未配置更新源，暂不支持应用内更新"
-                      : appInfo?.capabilities.autoUpdate
-                        ? "发布新版本后会自动下载"
-                        : "未配置更新源，暂不支持应用内更新"
-          }
-        >
-          {update.phase === "ready" ? (
-            <button type="button" className="btn btn--sm btn--primary" onClick={() => void api.installUpdate()}>
-              立即重启安装
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn--sm"
-              onClick={onCheckUpdate}
-              disabled={update.phase === "checking" || !appInfo?.capabilities.autoUpdate}
-            >
-              <RefreshCw size={13} className={update.phase === "checking" ? "spin" : undefined} />
-              检查更新
-            </button>
-          )}
-        </Field>
-
-        <p className="hint">
-          数据来自 Steam 商店公开接口，与 Valve 无隶属关系。所有数据只保存在你的设备上，不会上传到任何服务器。
-          评价翻译由第三方免费服务提供，点击翻译时仅发送该条评价原文。
-        </p>
-      </section>
     </div>
   );
-}
-
-function platformName(platform: AppInfo["platform"] | undefined): string {
-  switch (platform) {
-    case "electron":
-      return "桌面版";
-    case "harmony":
-      return "鸿蒙版";
-    default:
-      return "网页预览版";
-  }
 }

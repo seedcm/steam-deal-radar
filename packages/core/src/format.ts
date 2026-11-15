@@ -127,6 +127,11 @@ export function sanitizeSettings(patch: Partial<Settings>, current: Settings): S
   next.fetchPages = clamp(Math.round(next.fetchPages || 3), 1, 6);
   next.minDiscount = clamp(Math.round(next.minDiscount ?? 0), 0, 95);
   next.notifyMinDiscount = clamp(Math.round(next.notifyMinDiscount ?? 25), 0, 95);
+  if (!["builtin", "libretranslate", "openai"].includes(next.translationProvider)) next.translationProvider = "builtin";
+  next.translationEndpoint = String(next.translationEndpoint ?? "").trim();
+  next.translationApiKey = String(next.translationApiKey ?? "").trim();
+  next.translationModel = String(next.translationModel ?? "").trim();
+  next.translationTarget = String(next.translationTarget || "zh-CN").trim();
   next.quietHours.start = clamp(Math.round(next.quietHours.start ?? 23), 0, 23);
   next.quietHours.end = clamp(Math.round(next.quietHours.end ?? 8), 0, 23);
   if (next.language && next.country) {

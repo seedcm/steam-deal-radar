@@ -112,6 +112,8 @@ export interface QuietHours {
   end: number;
 }
 
+export type TranslationProvider = 'builtin' | 'libretranslate' | 'openai';
+
 export interface Settings {
   /** Steam 区域代码，如 cn / us / hk / jp */
   country: string;
@@ -132,6 +134,12 @@ export interface Settings {
   closeToTray: boolean;
   autoLaunch: boolean;
   autoUpdateApp: boolean;
+  /** 翻译源：内置免费 / LibreTranslate / OpenAI 兼容（鸿蒙端仅内置生效） */
+  translationProvider: TranslationProvider;
+  translationEndpoint: string;
+  translationApiKey: string;
+  translationModel: string;
+  translationTarget: string;
 }
 
 /** 设置补丁：桥协议里 updateSettings 的 patch 字段 */
@@ -157,6 +165,11 @@ export interface SettingsPatch {
   closeToTray?: boolean;
   autoLaunch?: boolean;
   autoUpdateApp?: boolean;
+  translationProvider?: TranslationProvider;
+  translationEndpoint?: string;
+  translationApiKey?: string;
+  translationModel?: string;
+  translationTarget?: string;
 }
 
 /**
@@ -374,7 +387,12 @@ export function defaultSettings(): Settings {
     theme: 'dark',
     closeToTray: true,
     autoLaunch: false,
-    autoUpdateApp: true
+    autoUpdateApp: true,
+    translationProvider: 'builtin',
+    translationEndpoint: '',
+    translationApiKey: '',
+    translationModel: '',
+    translationTarget: 'zh-CN'
   };
   return settings;
 }

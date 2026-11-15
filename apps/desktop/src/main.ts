@@ -8,6 +8,7 @@ import {
   RadarStore,
   type AppNotification,
   type RadarEvent,
+  type HttpRequestInit,
   type Settings,
   type StorageAdapter,
   type UpdateStatus,
@@ -57,12 +58,19 @@ const storage: StorageAdapter = {
   },
 };
 
-async function httpGet(url: string): Promise<string> {
+async function httpGet(url: string, init?: HttpRequestInit): Promise<string> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), 25_000);
   try {
     const response = await fetch(url, {
-      headers: { "user-agent": UA, "accept-language": "zh-CN,zh;q=0.9,en;q=0.6", accept: "application/json,text/html;q=0.9,*/*;q=0.8" },
+      method: init?.method ?? "GET",
+      body: init?.body,
+      headers: {
+        "user-agent": UA,
+        "accept-language": "zh-CN,zh;q=0.9,en;q=0.6",
+        accept: "application/json,text/html;q=0.9,*/*;q=0.8",
+        ...(init?.headers ?? {}),
+      },
       signal: abort.signal,
     });
     if (!response.ok) throw new Error(`Steam 返回 HTTP ${response.status}`);
@@ -322,7 +330,7 @@ async function setupUpdater(): Promise<void> {
     return;
   }
 
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on("checking-for-update", () => setUpdate({ phase: "checking" }));
   autoUpdater.on("update-available", (info) => setUpdate({ phase: "available", version: info.version }));
@@ -394,14 +402,21 @@ async function devCaptureSequence(): Promise<void> {
   await shoot("03-settings");
   if (mainWindow) {
     await mainWindow.webContents.executeJavaScript(
-      `(() => { const panels = document.querySelectorAll(".panel"); panels[panels.length - 1]?.scrollIntoView({ block: "start" }); return true; })()`,
+      `(() => { const panels = document.querySelectorAll(".panel"); panels[2]?.scrollIntoView({ block: "start" }); return true; })()`,
       true,
     );
   }
   await wait(500);
-  await clickText("查看协议");
-  await wait(500);
+  await shoot("03a-settings-translate");
+  await click(".rail__item:nth-child(4)");
+  await wait(700);
   await shoot("03b-about");
+  await clickText("查看协议");
+  await wait(400);
+  await shoot("03c-license");
+  await clickText("检查更新");
+  await wait(3000);
+  await shoot("03d-update-check");
   await click(".rail__item:nth-child(1)");
   await wait(500);
   await click(".card");
@@ -440,7 +455,7 @@ async function devCaptureSequence(): Promise<void> {
   }
   await wait(2500);
   await shoot("09-reviews-english");
-  await clickText("翻译成中文");
+  await clickText("翻译为中文");
   await wait(10000);
   if (mainWindow) {
     const info = await mainWindow.webContents.executeJavaScript(
@@ -450,6 +465,29 @@ async function devCaptureSequence(): Promise<void> {
     console.log("[shot] translate buttons:", info);
   }
   await shoot("10-reviews-translated");
+
+  // 中文评价翻译成英文
+  if (mainWindow) {
+    await mainWindow.webContents.executeJavaScript(
+      `(() => {
+         const selects = document.querySelectorAll(".review-panel select");
+         if (selects.length < 2) return false;
+         const setValue = (el, value) => {
+           const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+           setter.call(el, value);
+           el.dispatchEvent(new Event("change", { bubbles: true }));
+         };
+         setValue(selects[0], "schinese");
+         setValue(selects[1], "en");
+         return true;
+       })()`,
+      true,
+    );
+  }
+  await wait(2500);
+  await clickText("翻译为English");
+  await wait(9000);
+  await shoot("11-reviews-zh-to-en");
   await click(".drawer__close");
   await wait(400);
   if (mainWindow) {
@@ -497,8 +535,12 @@ async function bootstrap(): Promise<void> {
       },
       notify,
       checkUpdate: async () => checkForUpdates(true),
-      installUpdate: () => {
-        if (!autoUpdater) return;
+      installUpdate: async () => {
+        if (!autoUpdater) throw new Error("自动更新不可用");
+        if (updateStatus.phase !== "ready") {
+          setUpdate({ phase: "downloading", percent: 0 });
+          await autoUpdater.downloadUpdate();
+        }
         quitting = true;
         autoUpdater.quitAndInstall(false, true);
       },
