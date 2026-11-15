@@ -349,6 +349,14 @@ async function checkForUpdates(manual: boolean): Promise<UpdateStatus> {
   if (!app.isPackaged) {
     return { phase: "unsupported", message: "开发模式下不检查更新" };
   }
+  // Linux 解包安装（scripts/install-linux.sh）或系统包安装没有 APPIMAGE 环境变量，
+  // electron-updater 无法自替换，给出明确提示而不是抛底层错误
+  if (process.platform === "linux" && !process.env.APPIMAGE) {
+    return {
+      phase: "unsupported",
+      message: "当前是解包/系统包安装，应用内无法自动替换，请从 Releases 下载新版本或用安装脚本更新",
+    };
+  }
   if (!autoUpdater || !updaterConfigured) {
     return { phase: "unsupported", message: "尚未配置更新源，请修改 electron-builder.yml 的 publish" };
   }
@@ -537,6 +545,9 @@ async function bootstrap(): Promise<void> {
       checkUpdate: async () => checkForUpdates(true),
       installUpdate: async () => {
         if (!autoUpdater) throw new Error("自动更新不可用");
+        if (process.platform === "linux" && !process.env.APPIMAGE) {
+          throw new Error("当前安装方式不支持应用内更新，请从 Releases 下载新版本");
+        }
         if (updateStatus.phase !== "ready") {
           setUpdate({ phase: "downloading", percent: 0 });
           await autoUpdater.downloadUpdate();

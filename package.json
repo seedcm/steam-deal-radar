@@ -1,6 +1,6 @@
 {
   "name": "steam-deal-radar",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": true,
   "description": "Steam 折扣雷达 — 自动刷新、离线可查、关注提醒的跨平台 Steam 打折追踪器",
   "license": "MIT",

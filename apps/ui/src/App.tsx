@@ -254,7 +254,7 @@ export default function App() {
         </div>
         <div className="rail__spacer" />
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.4.0"}
+          v{radar.appInfo?.version ?? "1.4.1"}
         </div>
       </nav>
 
