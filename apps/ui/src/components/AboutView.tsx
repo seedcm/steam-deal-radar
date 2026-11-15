@@ -8,6 +8,8 @@ interface AboutViewProps {
   onCheckUpdate: () => void;
   onInstallUpdate: () => void;
   onOpen: (url: string) => void;
+  diagnostics: string;
+  onCopy: (text: string) => void;
 }
 
 const REPO_URL = "https://github.com/seedcm/steam-deal-radar";
@@ -48,10 +50,11 @@ function Row({ title, desc, children }: { title: string; desc?: string; children
   );
 }
 
-export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onOpen }: AboutViewProps) {
+export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onOpen, diagnostics, onCopy }: AboutViewProps) {
   const [showLicense, setShowLicense] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (update.phase === "checking") setDismissed(false);
@@ -78,7 +81,7 @@ export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onO
           <div>
             <h2>关于</h2>
             <p>
-              Steam 折扣雷达 v{appInfo?.version ?? "1.5.0"} · {platformName(appInfo?.platform)}
+              Steam 折扣雷达 v{appInfo?.version ?? "1.5.1"} · {platformName(appInfo?.platform)}
             </p>
           </div>
         </div>
@@ -199,8 +202,44 @@ export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onO
           </button>
         </Row>
 
-        <Row title="问题反馈" desc="遇到问题或有建议，可以在仓库里提交 Issue">
-          <button type="button" className="btn btn--sm" onClick={() => onOpen(ISSUES_URL)}>
+        <Row title="复制诊断信息" desc="版本、系统、刷新状态、代理设置等，不包含账号和密钥">
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={() => {
+              onCopy(diagnostics);
+              setCopied(true);
+              window.setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            <FileText size={13} /> {copied ? "已复制" : "复制诊断"}
+          </button>
+        </Row>
+
+        <Row title="问题反馈" desc="遇到功能异常或闪退，提交 Issue 时附上诊断信息会更容易定位">
+          <button
+            type="button"
+            className="btn btn--sm btn--primary"
+            onClick={() => {
+              const body = [
+                "## 问题描述",
+                "",
+                "（请描述发生了什么，越具体越好）",
+                "",
+                "## 复现步骤",
+                "",
+                "1. ",
+                "",
+                "## 诊断信息",
+                "",
+                "```",
+                diagnostics,
+                "```",
+                "",
+              ].join("\n");
+              onOpen(`${ISSUES_URL}/new?title=${encodeURIComponent("[Bug] ")}&body=${encodeURIComponent(body)}`);
+            }}
+          >
             <Bug size={13} /> 提交 Issue
           </button>
         </Row>

@@ -1,5 +1,5 @@
-import { ArrowDown, ArrowUp, RefreshCw, Search, Star } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, RefreshCw, Search, Star } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { PlatformFilter, Settings, SortKey } from "@radar/core";
 import { DEFAULT_SORT_DIRECTION, SORT_LABELS } from "@radar/core";
 import { ChevronDown } from "lucide-react";
@@ -17,14 +17,6 @@ interface TopBarProps {
   onToggleWatchOnly: () => void;
   onChangeSettings: (patch: Partial<Settings>) => void;
 }
-
-const SORT_SHORT: Record<SortKey, string> = {
-  discount: "折扣",
-  price: "折扣价",
-  originalPrice: "原价",
-  name: "名称",
-  review: "好评率",
-};
 
 const DISCOUNT_STEPS = [
   { value: 0, label: "全部折扣" },
@@ -55,6 +47,8 @@ export function TopBar({
   onChangeSettings,
 }: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const sortRef = useRef<HTMLDivElement>(null);
+  const [sortOpen, setSortOpen] = useState(false);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -66,6 +60,22 @@ export function TopBar({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!sortRef.current?.contains(event.target as Node)) setSortOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSortOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [sortOpen]);
 
   return (
     <header className="topbar">
@@ -122,37 +132,6 @@ export function TopBar({
             <ChevronDown size={12} />
           </div>
 
-          <div className="select select--compact">
-            <select
-              value={settings.sort}
-              aria-label="排序方式"
-              title={SORT_LABELS[settings.sort]}
-              onChange={(event) => {
-                const sort = event.target.value as SortKey;
-                onChangeSettings({ sort, sortDirection: DEFAULT_SORT_DIRECTION[sort] });
-              }}
-            >
-              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-                <option key={key} value={key}>
-                  {SORT_SHORT[key]}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={12} />
-          </div>
-
-          <button
-            type="button"
-            className="icon-btn topbar__sortdir"
-            title={settings.sortDirection === "asc" ? "升序（点击切换为降序）" : "降序（点击切换为升序）"}
-            aria-label={settings.sortDirection === "asc" ? "升序，点击切换为降序" : "降序，点击切换为升序"}
-            onClick={() =>
-              onChangeSettings({ sortDirection: settings.sortDirection === "asc" ? "desc" : "asc" })
-            }
-          >
-            {settings.sortDirection === "asc" ? <ArrowUp size={15} /> : <ArrowDown size={15} />}
-          </button>
-
           <button
             type="button"
             className={`chip chip--icon ${watchOnly ? "is-active" : ""}`}
@@ -166,6 +145,64 @@ export function TopBar({
         </div>
       )}
 
+      <div className="topbar__actions">
+        {settings && (
+          <div className="sortmenu" ref={sortRef}>
+          <button
+            type="button"
+            className="btn btn--sm sortmenu__trigger"
+            onClick={() => setSortOpen((value) => !value)}
+            aria-haspopup="menu"
+            aria-expanded={sortOpen}
+            title="排序方式"
+          >
+            <ArrowUpDown size={14} />
+            排序
+            <b>{SORT_LABELS[settings.sort]}</b>
+            {settings.sortDirection === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+          </button>
+
+          {sortOpen && (
+            <div className="sortmenu__panel" role="menu" aria-label="排序方式">
+              <div className="sortmenu__dirs">
+                <button
+                  type="button"
+                  className={settings.sortDirection === "asc" ? "is-active" : ""}
+                  onClick={() => onChangeSettings({ sortDirection: "asc" })}
+                >
+                  <ArrowUp size={13} /> 升序
+                </button>
+                <button
+                  type="button"
+                  className={settings.sortDirection === "desc" ? "is-active" : ""}
+                  onClick={() => onChangeSettings({ sortDirection: "desc" })}
+                >
+                  <ArrowDown size={13} /> 降序
+                </button>
+              </div>
+              <div className="sortmenu__list">
+                {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={settings.sort === key}
+                    className={settings.sort === key ? "is-active" : ""}
+                    onClick={() => {
+                      onChangeSettings({ sort: key, sortDirection: DEFAULT_SORT_DIRECTION[key] });
+                      setSortOpen(false);
+                    }}
+                  >
+                    <span>{SORT_LABELS[key]}</span>
+                    {settings.sort === key && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <button
         type="button"
         className="icon-btn topbar__refresh"
@@ -176,6 +213,7 @@ export function TopBar({
       >
         <RefreshCw size={16} className={refreshing ? "spin" : undefined} />
       </button>
+      </div>
     </header>
   );
 }

@@ -103,6 +103,20 @@ function notify(notification: AppNotification): void {
 
 /* ---------- 封面图本地缓存：断网也能看到封面 ---------- */
 
+/** Steam 封面 CDN 在不同网络下可达性不同，按顺序回退 */
+function imageCandidates(remote: string): string[] {
+  const list = [remote];
+  const add = (url: string) => {
+    if (url !== remote && !list.includes(url)) list.push(url);
+  };
+  const hosts = ["shared.akamai.steamstatic.com", "cdn.akamai.steamstatic.com", "shared.cloudflare.steamstatic.com", "cdn.cloudflare.steamstatic.com"];
+  const match = hosts.find((host) => remote.includes(host));
+  if (match) {
+    for (const host of hosts) add(remote.replace(match, host));
+  }
+  return list;
+}
+
 async function handleImageRequest(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
@@ -118,16 +132,28 @@ async function handleImageRequest(request: Request): Promise<Response> {
     try {
       bytes = new Uint8Array(await fs.readFile(file));
     } catch {
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), 15_000);
-      const response = await net.fetch(remote, { headers: { "user-agent": UA }, signal: abort.signal }).finally(() => clearTimeout(timer));
-      if (!response.ok) {
-        console.error("[img] remote status", response.status, remote);
+      let lastStatus = 0;
+      for (const candidate of imageCandidates(remote)) {
+        const abort = new AbortController();
+        const timer = setTimeout(() => abort.abort(), 12_000);
+        try {
+          const response = await net.fetch(candidate, { headers: { "user-agent": UA }, signal: abort.signal }).finally(() => clearTimeout(timer));
+          if (!response.ok) {
+            lastStatus = response.status;
+            continue;
+          }
+          contentType = response.headers.get("content-type") ?? "image/jpeg";
+          bytes = new Uint8Array(await response.arrayBuffer());
+          await fs.writeFile(file, bytes).catch(() => {});
+          break;
+        } catch (error) {
+          console.warn("[img] 拉取失败", candidate, error instanceof Error ? error.message : error);
+        }
+      }
+      if (!bytes!) {
+        console.error("[img] 所有 CDN 均失败", lastStatus, remote);
         return new Response("not found", { status: 404 });
       }
-      contentType = response.headers.get("content-type") ?? "image/jpeg";
-      bytes = new Uint8Array(await response.arrayBuffer());
-      await fs.writeFile(file, bytes).catch(() => {});
     }
     // 运行时是 Uint8Array，TS 的 DOM 类型对 ArrayBufferLike 比较挑剔
     return new Response(bytes as unknown as BodyInit, {
@@ -475,6 +501,11 @@ async function devCaptureSequence(): Promise<void> {
 
   await wait(Number(process.env.RADAR_SHOT_DELAY ?? 9000));
   await shoot("01-deals");
+  await click(".sortmenu__trigger");
+  await wait(500);
+  await shoot("01b-sort-menu");
+  await click(".topbar__title h1");
+  await wait(300);
   await click(".card .star");
   await wait(900);
   await click(".rail__item:nth-child(2)");

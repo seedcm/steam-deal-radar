@@ -234,6 +234,21 @@ export default function App() {
         ? `${snapshot?.watchlist.length ?? 0} 个关注 · ${offline ? "离线查看" : "自动刷新中"}`
         : `v${radar.appInfo?.version ?? "1.2.0"} · ${REGIONS.find((item) => item.code === settings?.country)?.label ?? "中国"}`;
 
+  const diagnostics = useMemo(() => {
+    const info = radar.appInfo;
+    return [
+      `版本：${info?.version ?? "?"}`,
+      `平台：${info?.platform ?? "?"} / ${info?.os ?? "?"}`,
+      `区域：${settings?.country ?? "?"}  语言：${settings?.language ?? "?"}`,
+      `折扣：${deals.length}  关注：${snapshot?.watchlist.length ?? 0}`,
+      `上次刷新：${snapshot?.meta.lastRefreshAt ? new Date(snapshot.meta.lastRefreshAt).toLocaleString("zh-CN") : "无"}`,
+      `刷新错误：${snapshot?.meta.lastRefreshError ?? "无"}`,
+      `更新状态：${radar.update.phase}${radar.update.message ? ` · ${radar.update.message}` : ""}`,
+      `代理：${settings?.proxyMode ?? "?"} ${settings?.proxyRules ?? ""}`.trim(),
+      `翻译源：${settings?.translationProvider ?? "?"}`,
+    ].join("\n");
+  }, [radar.appInfo, radar.update, settings, deals.length, snapshot]);
+
   const title =
     view === "deals" ? "折扣雷达" : view === "watch" ? "我的关注" : view === "settings" ? "设置" : "关于";
 
@@ -267,7 +282,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.5.0"}
+          v{radar.appInfo?.version ?? "1.5.1"}
         </div>
       </nav>
 
@@ -298,6 +313,16 @@ export default function App() {
             <div className="banner banner--error">
               <AlertTriangle size={15} />
               <span className="banner__grow">{snapshot.meta.lastRefreshError}</span>
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={() => {
+                  void api.copyText(diagnostics);
+                  radar.toast("诊断信息已复制，反馈时粘贴即可", "success");
+                }}
+              >
+                复制诊断
+              </button>
               <button type="button" className="btn btn--sm" onClick={() => void radar.refresh(true)}>
                 <RefreshCw size={12} /> 重试
               </button>
@@ -383,6 +408,11 @@ export default function App() {
               onCheckUpdate={() => void radar.checkUpdate()}
               onInstallUpdate={() => void api.installUpdate().catch((error) => radar.toast(error instanceof Error ? error.message : "更新失败", "error"))}
               onOpen={(url) => void api.openExternal(url)}
+              diagnostics={diagnostics}
+              onCopy={(text) => {
+                void api.copyText(text);
+                radar.toast("诊断信息已复制", "success");
+              }}
             />
           )}
 
