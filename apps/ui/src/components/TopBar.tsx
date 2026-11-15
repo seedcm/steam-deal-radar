@@ -1,7 +1,7 @@
-import { RefreshCw, Search, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, RefreshCw, Search, Star } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { PlatformFilter, Settings, SortKey } from "@radar/core";
-import { SORT_LABELS } from "@radar/core";
+import { DEFAULT_SORT_DIRECTION, SORT_LABELS } from "@radar/core";
 import { ChevronDown } from "lucide-react";
 
 interface TopBarProps {
@@ -20,7 +20,8 @@ interface TopBarProps {
 
 const SORT_SHORT: Record<SortKey, string> = {
   discount: "折扣",
-  price: "价格",
+  price: "折扣价",
+  originalPrice: "原价",
   name: "名称",
   review: "好评率",
 };
@@ -126,7 +127,10 @@ export function TopBar({
               value={settings.sort}
               aria-label="排序方式"
               title={SORT_LABELS[settings.sort]}
-              onChange={(event) => onChangeSettings({ sort: event.target.value as SortKey })}
+              onChange={(event) => {
+                const sort = event.target.value as SortKey;
+                onChangeSettings({ sort, sortDirection: DEFAULT_SORT_DIRECTION[sort] });
+              }}
             >
               {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
                 <option key={key} value={key}>
@@ -139,13 +143,25 @@ export function TopBar({
 
           <button
             type="button"
+            className="icon-btn topbar__sortdir"
+            title={settings.sortDirection === "asc" ? "升序（点击切换为降序）" : "降序（点击切换为升序）"}
+            aria-label={settings.sortDirection === "asc" ? "升序，点击切换为降序" : "降序，点击切换为升序"}
+            onClick={() =>
+              onChangeSettings({ sortDirection: settings.sortDirection === "asc" ? "desc" : "asc" })
+            }
+          >
+            {settings.sortDirection === "asc" ? <ArrowUp size={15} /> : <ArrowDown size={15} />}
+          </button>
+
+          <button
+            type="button"
             className={`chip chip--icon ${watchOnly ? "is-active" : ""}`}
             onClick={onToggleWatchOnly}
             aria-pressed={watchOnly}
             title="只看已关注"
           >
             <Star size={12} fill={watchOnly ? "currentColor" : "none"} />
-            只看关注
+            关注
           </button>
         </div>
       )}

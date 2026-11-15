@@ -3,7 +3,8 @@
  * 价格以「最小货币单位（分）」整数存储，避免浮点误差；展示时使用 Steam 返回的格式化文本优先。
  */
 
-export type SortKey = "discount" | "price" | "name" | "review";
+export type SortKey = "discount" | "price" | "originalPrice" | "name" | "review";
+export type SortDirection = "asc" | "desc";
 export type PlatformFilter = "all" | "windows" | "linux";
 export type ThemeMode = "dark" | "light";
 export type TranslationProvider = "builtin" | "libretranslate" | "openai";
@@ -91,6 +92,7 @@ export interface Settings {
   fetchPages: number;
   minDiscount: number;
   sort: SortKey;
+  sortDirection: SortDirection;
   notifyEnabled: boolean;
   notifyMinDiscount: number;
   notifyNewLow: boolean;
@@ -108,6 +110,8 @@ export interface Settings {
   /** 默认翻译目标语言，如 zh-CN / en / ja */
   translationTarget: string;
   /** 网络代理：跟随系统 / 直连 / 手动 */
+  uiScale: number;
+  allowInsecureCert: boolean;
   proxyMode: ProxyMode;
   /** 手动代理规则，如 http://127.0.0.1:7890 */
   proxyRules: string;
@@ -230,7 +234,17 @@ export const TRANSLATION_TARGETS: Array<{ code: string; label: string }> = [
 
 export const SORT_LABELS: Record<SortKey, string> = {
   discount: "折扣力度",
-  price: "价格由低到高",
+  price: "折扣价",
+  originalPrice: "原价",
   name: "名称",
   review: "好评率",
+};
+
+/** 切换排序字段时使用的默认方向 */
+export const DEFAULT_SORT_DIRECTION: Record<SortKey, SortDirection> = {
+  discount: "desc",
+  price: "asc",
+  originalPrice: "asc",
+  name: "asc",
+  review: "desc",
 };

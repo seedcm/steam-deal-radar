@@ -398,8 +398,20 @@ export function SettingsView({
           </Field>
         )}
 
+        <Field
+          title="允许自签名证书"
+          desc="仅在使用 Steamcommunity_302 等本地加速工具、且错误提示证书不受信任时开启"
+        >
+          <Switch
+            on={settings.allowInsecureCert}
+            onClick={() => onChange({ allowInsecureCert: !settings.allowInsecureCert })}
+            label="允许自签名证书"
+          />
+        </Field>
+
         <p className="hint">
           修改后立即生效（下一次请求开始使用）；如果代理软件只监听局域网地址，请填实际地址。当前仅桌面端支持代理设置。
+          开启「允许自签名证书」会降低连接安全性，只建议在明确知道自己在用什么本地加速工具时临时开启。
         </p>
       </section>
 
@@ -413,6 +425,25 @@ export function SettingsView({
             <p>桌面端关闭窗口后仍驻留托盘，才能按时提醒</p>
           </div>
         </div>
+
+        <Field title="字体大小" desc="自动会按屏幕分辨率与系统缩放选择；调整后立即生效">
+          <div className="select">
+            <select
+              value={settings.uiScale}
+              aria-label="字体大小"
+              onChange={(event) => onChange({ uiScale: Number(event.target.value) })}
+            >
+              <option value={0}>自动（推荐）</option>
+              <option value={0.9}>90%</option>
+              <option value={1}>100%</option>
+              <option value={1.1}>110%</option>
+              <option value={1.25}>125%</option>
+              <option value={1.5}>150%</option>
+              <option value={1.75}>175%</option>
+            </select>
+            <ChevronDown size={13} />
+          </div>
+        </Field>
 
         <Field title="主题" desc="跟随你的使用习惯">
           <div className="seg">

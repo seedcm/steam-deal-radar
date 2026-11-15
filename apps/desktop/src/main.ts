@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, net, protocol, session, shell } from "electron";
+import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, net, protocol, screen, session, shell } from "electron";
 import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -212,6 +212,7 @@ function createWindow(): BrowserWindow {
 function showWindow(): void {
   if (!mainWindow) {
     mainWindow = createWindow();
+  applyUiScale(currentSettings);
     return;
   }
   if (mainWindow.isMinimized()) mainWindow.restore();
@@ -231,7 +232,8 @@ function buildTray(): void {
 function buildTrayInner(): void {
   const iconPath = assetPath("tray.png");
   const image = nativeImage.createFromPath(iconPath);
-  tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image.resize({ width: 22, height: 22 }));
+  const traySize = process.platform === "win32" ? 16 : 22;
+  tray = new Tray(image.isEmpty() ? nativeImage.createEmpty() : image.resize({ width: traySize, height: traySize }));
   tray.setToolTip("Steam 折扣雷达");
   const refreshItem = { label: "立即刷新折扣", click: () => void refreshNow(true) };
   tray.setContextMenu(
@@ -300,10 +302,62 @@ function applySettings(next: Settings): void {
   const changedLaunch = currentSettings?.autoLaunch !== next.autoLaunch;
   const changedProxy =
     currentSettings?.proxyMode !== next.proxyMode || currentSettings?.proxyRules !== next.proxyRules;
+  const changedScale = currentSettings?.uiScale !== next.uiScale;
+  const changedCert = currentSettings?.allowInsecureCert !== next.allowInsecureCert;
   currentSettings = next;
   if (changedInterval) scheduleRefresh();
   if (changedLaunch) applyAutoLaunch(next.autoLaunch);
   if (changedProxy) void applyProxy(next);
+  if (changedScale) applyUiScale(next);
+  if (changedCert) insecureCertAllowed = Boolean(next.allowInsecureCert);
+}
+
+/* ---------- 高分屏与字体缩放 ---------- */
+
+/** uiScale=0 时按主屏物理分辨率与系统缩放自动选择 */
+function effectiveUiScale(settings: Settings): number {
+  if (settings.uiScale > 0) return settings.uiScale;
+  const display = screen.getPrimaryDisplay();
+  const scaleFactor = display.scaleFactor || 1;
+  const physicalWidth = display.size.width;
+  if (scaleFactor >= 2) return 1.2;
+  if (scaleFactor >= 1.5 || physicalWidth >= 3200) return 1.1;
+  if (physicalWidth <= 1400) return 0.95;
+  return 1;
+}
+
+function applyUiScale(settings: Settings): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const scale = Math.min(1.8, Math.max(0.8, effectiveUiScale(settings)));
+  mainWindow.webContents.setZoomFactor(scale);
+}
+
+/* ---------- 本地加速工具的自签名证书 ---------- */
+
+let insecureCertAllowed = false;
+
+function isSteamHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host.endsWith("steampowered.com") ||
+    host.endsWith("steamcommunity.com") ||
+    host.endsWith("steamstatic.com") ||
+    host.endsWith("steamcontent.com") ||
+    host.endsWith("steam-chat.com")
+  );
+}
+
+/** 安装一次；是否放行由 insecureCertAllowed 动态决定 */
+function installCertPolicy(): void {
+  session.defaultSession.setCertificateVerifyProc((request, callback) => {
+    if (insecureCertAllowed && isSteamHost(request.hostname)) {
+      callback(0);
+      return;
+    }
+    callback(-3);
+  });
 }
 
 /** 让主进程的 HTTP 请求按设置使用系统代理 / 直连 / 手动代理 */
@@ -437,6 +491,22 @@ async function devCaptureSequence(): Promise<void> {
   }
   await wait(500);
   await shoot("03a-settings-translate");
+  if (mainWindow) {
+    await mainWindow.webContents.executeJavaScript(
+      `(() => { const panels = document.querySelectorAll(".panel"); panels[3]?.scrollIntoView({ block: "start" }); return true; })()`,
+      true,
+    );
+  }
+  await wait(400);
+  await shoot("03b-settings-network");
+  if (mainWindow) {
+    await mainWindow.webContents.executeJavaScript(
+      `(() => { const panels = document.querySelectorAll(".panel"); panels[4]?.scrollIntoView({ block: "start" }); return true; })()`,
+      true,
+    );
+  }
+  await wait(400);
+  await shoot("03c-settings-appearance");
   await click(".rail__item:nth-child(4)");
   await wait(700);
   await shoot("03b-about");
@@ -551,6 +621,8 @@ async function bootstrap(): Promise<void> {
   });
   await service.init();
   currentSettings = service.store.settings;
+  insecureCertAllowed = Boolean(currentSettings.allowInsecureCert);
+  installCertPolicy();
   await applyProxy(currentSettings);
   await setupUpdater();
 
@@ -606,6 +678,7 @@ async function bootstrap(): Promise<void> {
   protocol.handle("radarimg", handleImageRequest);
 
   mainWindow = createWindow();
+  applyUiScale(currentSettings);
   buildTray();
   scheduleRefresh();
   applyAutoLaunch(currentSettings.autoLaunch);

@@ -107,8 +107,18 @@ export default function App() {
           watchIds,
         },
         settings?.sort ?? "discount",
+        settings?.sortDirection ?? "desc",
       ),
-    [deals, query, settings?.minDiscount, settings?.onlyPlatform, settings?.sort, watchOnly, watchIds],
+    [
+      deals,
+      query,
+      settings?.minDiscount,
+      settings?.onlyPlatform,
+      settings?.sort,
+      settings?.sortDirection,
+      watchOnly,
+      watchIds,
+    ],
   );
 
   const lowIds = useMemo(() => {
@@ -257,7 +267,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.4.8"}
+          v{radar.appInfo?.version ?? "1.5.0"}
         </div>
       </nav>
 

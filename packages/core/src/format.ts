@@ -132,6 +132,11 @@ export function sanitizeSettings(patch: Partial<Settings>, current: Settings): S
   next.translationApiKey = String(next.translationApiKey ?? "").trim();
   next.translationModel = String(next.translationModel ?? "").trim();
   next.translationTarget = String(next.translationTarget || "zh-CN").trim();
+  if (next.sortDirection !== "asc" && next.sortDirection !== "desc") next.sortDirection = "desc";
+  next.uiScale = Number(next.uiScale ?? 0);
+  if (!Number.isFinite(next.uiScale) || next.uiScale < 0) next.uiScale = 0;
+  if (next.uiScale > 0) next.uiScale = clamp(next.uiScale, 0.8, 1.8);
+  next.allowInsecureCert = Boolean(next.allowInsecureCert);
   if (!["system", "direct", "manual"].includes(next.proxyMode)) next.proxyMode = "system";
   next.proxyRules = String(next.proxyRules ?? "").trim();
   next.quietHours.start = clamp(Math.round(next.quietHours.start ?? 23), 0, 23);

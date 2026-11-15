@@ -13,7 +13,8 @@ export const BUNDLE_NAME: string = 'com.steamdealradar.app';
 /** 与 packages/core/src/store.ts 的 STATE_VERSION 保持一致 */
 export const STATE_VERSION: number = 1;
 
-export type SortKey = 'discount' | 'price' | 'name' | 'review';
+export type SortKey = 'discount' | 'price' | 'originalPrice' | 'name' | 'review';
+export type SortDirection = 'asc' | 'desc';
 export type PlatformFilter = 'all' | 'windows' | 'linux';
 export type ThemeMode = 'dark' | 'light';
 export type NotifyKind = 'target' | 'newlow' | 'sale' | 'digest';
@@ -126,6 +127,7 @@ export interface Settings {
   fetchPages: number;
   minDiscount: number;
   sort: SortKey;
+  sortDirection: SortDirection;
   notifyEnabled: boolean;
   notifyMinDiscount: number;
   notifyNewLow: boolean;
@@ -135,6 +137,9 @@ export interface Settings {
   closeToTray: boolean;
   autoLaunch: boolean;
   autoUpdateApp: boolean;
+  /** 设置里的界面缩放；0 = 自动（仅桌面端生效） */
+  uiScale: number;
+  allowInsecureCert: boolean;
   /** 翻译源：内置免费 / LibreTranslate / OpenAI 兼容（鸿蒙端仅内置生效） */
   translationProvider: TranslationProvider;
   translationEndpoint: string;
@@ -159,6 +164,7 @@ export interface SettingsPatch {
   fetchPages?: number;
   minDiscount?: number;
   sort?: SortKey;
+  sortDirection?: SortDirection;
   notifyEnabled?: boolean;
   notifyMinDiscount?: number;
   notifyNewLow?: boolean;
@@ -168,6 +174,8 @@ export interface SettingsPatch {
   closeToTray?: boolean;
   autoLaunch?: boolean;
   autoUpdateApp?: boolean;
+  uiScale?: number;
+  allowInsecureCert?: boolean;
   translationProvider?: TranslationProvider;
   translationEndpoint?: string;
   translationApiKey?: string;
@@ -384,6 +392,7 @@ export function defaultSettings(): Settings {
     fetchPages: 3,
     minDiscount: 0,
     sort: 'discount',
+    sortDirection: 'desc',
     notifyEnabled: true,
     notifyMinDiscount: 25,
     notifyNewLow: true,
@@ -393,6 +402,8 @@ export function defaultSettings(): Settings {
     closeToTray: true,
     autoLaunch: false,
     autoUpdateApp: true,
+    uiScale: 0,
+    allowInsecureCert: false,
     translationProvider: 'builtin',
     translationEndpoint: '',
     translationApiKey: '',
@@ -452,6 +463,7 @@ export function sanitizeSettings(patch: SettingsPatch, current: Settings): Setti
     fetchPages: clamp(Math.round(rawFetch > 0 ? rawFetch : 3), 1, 6),
     minDiscount: clamp(Math.round(rawLowDiscount), 0, 95),
     sort: patch.sort !== undefined ? patch.sort : current.sort,
+    sortDirection: patch.sortDirection !== undefined ? patch.sortDirection : current.sortDirection,
     notifyEnabled: patch.notifyEnabled !== undefined ? patch.notifyEnabled : current.notifyEnabled,
     notifyMinDiscount: clamp(Math.round(rawNotifyDiscount), 0, 95),
     notifyNewLow: patch.notifyNewLow !== undefined ? patch.notifyNewLow : current.notifyNewLow,
@@ -460,7 +472,10 @@ export function sanitizeSettings(patch: SettingsPatch, current: Settings): Setti
     theme: patch.theme !== undefined ? patch.theme : current.theme,
     closeToTray: patch.closeToTray !== undefined ? patch.closeToTray : current.closeToTray,
     autoLaunch: patch.autoLaunch !== undefined ? patch.autoLaunch : current.autoLaunch,
-    autoUpdateApp: patch.autoUpdateApp !== undefined ? patch.autoUpdateApp : current.autoUpdateApp
+    autoUpdateApp: patch.autoUpdateApp !== undefined ? patch.autoUpdateApp : current.autoUpdateApp,
+    uiScale: patch.uiScale !== undefined ? patch.uiScale : current.uiScale,
+    allowInsecureCert:
+      patch.allowInsecureCert !== undefined ? patch.allowInsecureCert : current.allowInsecureCert
   };
   return settings;
 }

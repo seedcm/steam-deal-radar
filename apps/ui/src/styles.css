@@ -1982,3 +1982,13 @@ textarea.note-input {
   user-select: none;
   pointer-events: none;
 }
+
+.search {
+  max-width: 280px;
+}
+
+.select--compact select {
+  height: 30px;
+  padding: 0 20px 0 8px;
+  font-size: 11.5px;
+}

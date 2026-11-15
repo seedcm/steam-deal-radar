@@ -628,6 +628,19 @@ function parseSettingsPatch(record: Record<string, Object>): SettingsPatch {
   if (sort !== undefined) {
     patch.sort = sort;
   }
+  const sortDirection = readString(record, 'sortDirection');
+  if (sortDirection === 'asc' || sortDirection === 'desc') {
+    patch.sortDirection = sortDirection;
+  }
+  const uiScale = readOptionalNumber(record, 'uiScale');
+  if (uiScale !== undefined) {
+    patch.uiScale = uiScale;
+  }
+  const allowInsecureCert = record['allowInsecureCert'];
+  if (typeof allowInsecureCert === 'boolean') {
+    patch.allowInsecureCert = allowInsecureCert;
+  }
+
   const notifyEnabled = record['notifyEnabled'];
   if (typeof notifyEnabled === 'boolean') {
     patch.notifyEnabled = notifyEnabled;
@@ -683,7 +696,7 @@ function parseSettingsPatch(record: Record<string, Object>): SettingsPatch {
 }
 
 function parseSortKey(value: string | undefined): SortKey | undefined {
-  if (value === 'discount' || value === 'price' || value === 'name' || value === 'review') {
+  if (value === 'discount' || value === 'price' || value === 'originalPrice' || value === 'name' || value === 'review') {
     return value;
   }
   return undefined;

@@ -1,4 +1,5 @@
-import type { Deal, GameReview, PlatformFilter, ReviewType, SortKey } from "./types";
+import { DEFAULT_SORT_DIRECTION } from "./types";
+import type { Deal, GameReview, PlatformFilter, ReviewType, SortDirection, SortKey } from "./types";
 
 export interface DealFilter {
   query?: string;
@@ -35,33 +36,47 @@ export function filterDeals(deals: readonly Deal[], filter: DealFilter): Deal[] 
   });
 }
 
-export function sortDeals(deals: readonly Deal[], sort: SortKey): Deal[] {
+export function sortDeals(
+  deals: readonly Deal[],
+  sort: SortKey,
+  direction: SortDirection = DEFAULT_SORT_DIRECTION[sort],
+): Deal[] {
+  const ascending = direction === "asc";
+  const lowFirst = (a: number, b: number) => (ascending ? a - b : b - a);
+  const highFirst = (a: number, b: number) => (ascending ? a - b : b - a);
   const list = [...deals];
   switch (sort) {
     case "price":
-      list.sort((a, b) => (a.finalPrice ?? Infinity) - (b.finalPrice ?? Infinity) || b.discountPercent - a.discountPercent);
+      list.sort((a, b) => lowFirst(a.finalPrice ?? Infinity, b.finalPrice ?? Infinity));
+      break;
+    case "originalPrice":
+      list.sort((a, b) => lowFirst(a.originalPrice ?? Infinity, b.originalPrice ?? Infinity));
       break;
     case "name":
-      list.sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+      list.sort((a, b) => (ascending ? 1 : -1) * a.name.localeCompare(b.name, "zh-Hans-CN"));
       break;
     case "review":
-      list.sort((a, b) => (b.reviewPercent ?? -1) - (a.reviewPercent ?? -1) || b.discountPercent - a.discountPercent);
+      list.sort((a, b) => highFirst(a.reviewPercent ?? -1, b.reviewPercent ?? -1));
       break;
     case "discount":
     default:
       list.sort(
         (a, b) =>
-          b.discountPercent - a.discountPercent ||
-          (a.finalPrice ?? Infinity) - (b.finalPrice ?? Infinity) ||
-          a.name.localeCompare(b.name, "zh-Hans-CN"),
+          highFirst(a.discountPercent, b.discountPercent) ||
+          (a.finalPrice ?? Infinity) - (b.finalPrice ?? Infinity),
       );
       break;
   }
   return list;
 }
 
-export function pickDeals(deals: readonly Deal[], filter: DealFilter, sort: SortKey): Deal[] {
-  return sortDeals(filterDeals(deals, filter), sort);
+export function pickDeals(
+  deals: readonly Deal[],
+  filter: DealFilter,
+  sort: SortKey,
+  direction: SortDirection = DEFAULT_SORT_DIRECTION[sort],
+): Deal[] {
+  return sortDeals(filterDeals(deals, filter), sort, direction);
 }
 
 /**

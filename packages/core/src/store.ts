@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fetchPages: 3,
   minDiscount: 0,
   sort: "discount",
+  sortDirection: "desc",
   notifyEnabled: true,
   notifyMinDiscount: 25,
   notifyNewLow: true,
@@ -36,6 +37,8 @@ export const DEFAULT_SETTINGS: Settings = {
   translationApiKey: "",
   translationModel: "",
   translationTarget: "zh-CN",
+  uiScale: 0,
+  allowInsecureCert: false,
   proxyMode: "system",
   proxyRules: "",
 };

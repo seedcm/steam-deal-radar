@@ -15,9 +15,9 @@ const deal = (patch: Partial<Deal>): Deal => ({
 });
 
 const deals = [
-  deal({ appId: 1, name: "Alpha", discountPercent: 80, finalPrice: 2000, platforms: { windows: true, mac: false, linux: false } }),
-  deal({ appId: 2, name: "Beta 测试", discountPercent: 30, finalPrice: 500, platforms: { windows: true, mac: true, linux: true } }),
-  deal({ appId: 3, name: "Gamma", discountPercent: 50, finalPrice: 1000, tags: ["Roguelike"], platforms: { windows: false, mac: false, linux: true } }),
+  deal({ appId: 1, name: "Alpha", discountPercent: 80, finalPrice: 2000, originalPrice: 10000, platforms: { windows: true, mac: false, linux: false } }),
+  deal({ appId: 2, name: "Beta 测试", discountPercent: 30, finalPrice: 500, originalPrice: 714, platforms: { windows: true, mac: true, linux: true } }),
+  deal({ appId: 3, name: "Gamma", discountPercent: 50, finalPrice: 1000, originalPrice: 2000, tags: ["Roguelike"], platforms: { windows: false, mac: false, linux: true } }),
 ];
 
 describe("filterDeals", () => {
@@ -43,6 +43,13 @@ describe("sortDeals", () => {
     expect(sortDeals(deals, "discount").map((item) => item.appId)).toEqual([1, 3, 2]);
     expect(sortDeals(deals, "price").map((item) => item.appId)).toEqual([2, 3, 1]);
     expect(sortDeals(deals, "name").map((item) => item.name)).toEqual(["Alpha", "Beta 测试", "Gamma"]);
+  });
+
+  it("支持升降序与原价排序", () => {
+    expect(sortDeals(deals, "discount", "asc").map((item) => item.appId)).toEqual([2, 3, 1]);
+    expect(sortDeals(deals, "price", "desc").map((item) => item.appId)).toEqual([1, 3, 2]);
+    expect(sortDeals(deals, "originalPrice", "asc").map((item) => item.appId)).toEqual([2, 3, 1]);
+    expect(sortDeals(deals, "name", "desc").map((item) => item.name)).toEqual(["Gamma", "Beta 测试", "Alpha"]);
   });
 
   it("不修改原数组", () => {
@@ -99,6 +106,13 @@ describe("filterReviews", () => {
     expect(filterReviews([...reviews], ["negative"]).map((item) => item.id)).toEqual(["2"]);
     expect(filterReviews([...reviews], ["positive", "negative"])).toHaveLength(3);
     expect(filterReviews([...reviews], [])).toHaveLength(3);
+  });
+
+  it("支持升降序与原价排序", () => {
+    expect(sortDeals(deals, "discount", "asc").map((item) => item.appId)).toEqual([2, 3, 1]);
+    expect(sortDeals(deals, "price", "desc").map((item) => item.appId)).toEqual([1, 3, 2]);
+    expect(sortDeals(deals, "originalPrice", "asc").map((item) => item.appId)).toEqual([2, 3, 1]);
+    expect(sortDeals(deals, "name", "desc").map((item) => item.name)).toEqual(["Gamma", "Beta 测试", "Alpha"]);
   });
 
   it("不修改原数组", () => {
