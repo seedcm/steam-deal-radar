@@ -1,6 +1,6 @@
 {
   "name": "@radar/desktop",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "description": "Steam 折扣雷达 桌面版 (Windows / Linux)",
   "author": "Steam Deal Radar",

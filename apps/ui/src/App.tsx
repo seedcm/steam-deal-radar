@@ -253,8 +253,11 @@ export default function App() {
           </button>
         </div>
         <div className="rail__spacer" />
+        <div className="rail__watermark" aria-hidden="true">
+          STEAM DEAL RADAR
+        </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.4.1"}
+          v{radar.appInfo?.version ?? "1.4.2"}
         </div>
       </nav>
 

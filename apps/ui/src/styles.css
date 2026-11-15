@@ -1419,6 +1419,7 @@ textarea.note-input {
     --rail: 68px;
   }
   .rail__foot,
+  .rail__watermark,
   .rail__item span {
     display: none;
   }
@@ -1961,4 +1962,15 @@ textarea.note-input {
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+}
+
+.rail__watermark {
+  writing-mode: vertical-rl;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  opacity: 0.4;
+  margin-bottom: 12px;
+  user-select: none;
+  pointer-events: none;
 }
