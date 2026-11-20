@@ -2090,3 +2090,38 @@ textarea.note-input {
 .topbar__refresh {
   margin-left: 0;
 }
+
+/* ---------- 目标价校验 / 错误提示 ---------- */
+
+.hint--error {
+  color: #ff9b9b !important;
+  margin-top: 6px;
+}
+
+.number-input.is-error,
+.target-input.is-error {
+  border-color: rgba(255, 120, 120, 0.65) !important;
+  box-shadow: 0 0 0 2px rgba(255, 120, 120, 0.12);
+}
+
+.target-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+}
+
+.target-input__error {
+  max-width: 120px;
+  font-size: 10px;
+  line-height: 1.25;
+  color: #ff9b9b;
+  text-align: right;
+}
+
+.review-item__error-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}

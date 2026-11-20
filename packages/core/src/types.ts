@@ -5,7 +5,7 @@
 
 export type SortKey = "discount" | "price" | "originalPrice" | "name" | "review";
 export type SortDirection = "asc" | "desc";
-export type PlatformFilter = "all" | "windows" | "linux";
+export type PlatformFilter = "all" | "windows" | "mac" | "linux";
 export type ThemeMode = "dark" | "light";
 export type TranslationProvider = "builtin" | "libretranslate" | "openai";
 export type ProxyMode = "system" | "direct" | "manual";

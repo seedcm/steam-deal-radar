@@ -12,6 +12,8 @@ export interface ControllerHost {
   quit?(): void;
   /** 写入系统剪贴板（用于导出备份） */
   copyText?(text: string): void | Promise<void>;
+  /** 选择位置并保存备份文件，返回保存路径；取消返回 null */
+  saveFile?(data: string, suggestedName: string): Promise<string | null>;
   /** 宿主向渲染层广播事件（刷新完成、更新进度等） */
   emit?(event: RadarEvent): void;
   dataDir?: string;
@@ -142,6 +144,25 @@ export class RadarController {
         return undefined;
       case "exportData":
         return this.service.store.exportState();
+      case "saveExport": {
+        const json = this.service.store.exportState();
+        const name = `steam-deal-radar-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        if (this.host.saveFile) {
+          try {
+            const saved = await this.host.saveFile(json, name);
+            return { saved: Boolean(saved), path: saved ?? undefined };
+          } catch (error) {
+            if (!this.host.copyText) throw error;
+            await this.host.copyText(json);
+            return { saved: false, copied: true };
+          }
+        }
+        if (this.host.copyText) {
+          await this.host.copyText(json);
+          return { saved: false, copied: true };
+        }
+        throw new Error("当前平台不支持导出备份");
+      }
       case "copyText": {
         const { text } = payload as { text: string };
         if (!this.host.copyText) throw new Error("当前平台不支持复制到剪贴板");

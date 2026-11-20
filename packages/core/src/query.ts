@@ -28,6 +28,7 @@ export function filterDeals(deals: readonly Deal[], filter: DealFilter): Deal[] 
   return deals.filter((deal) => {
     if (deal.discountPercent < minDiscount) return false;
     if (filter.platform === "windows" && !deal.platforms.windows) return false;
+    if (filter.platform === "mac" && !deal.platforms.mac) return false;
     if (filter.platform === "linux" && !deal.platforms.linux) return false;
     if (filter.watchOnly && !watched.has(deal.appId)) return false;
     if (filter.hideWatched && watched.has(deal.appId)) return false;

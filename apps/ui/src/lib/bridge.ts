@@ -166,6 +166,16 @@ class WebBridge implements RadarBridge {
         openExternal: (url) => {
           window.open(url, "_blank", "noopener,noreferrer");
         },
+        saveFile: async (data, suggestedName) => {
+          const blob = new Blob([data], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = suggestedName;
+          anchor.click();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          return suggestedName;
+        },
         copyText: async (text) => {
           if (navigator.clipboard?.writeText) {
             await navigator.clipboard.writeText(text);

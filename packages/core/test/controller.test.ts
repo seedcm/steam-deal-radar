@@ -16,3 +16,42 @@ describe("isAllowedExternalUrl", () => {
     expect(isAllowedExternalUrl("not a url")).toBeNull();
   });
 });
+
+import { RadarController } from "../src/controller";
+import { RadarService } from "../src/service";
+import { RadarStore } from "../src/store";
+import type { StorageAdapter } from "../src/types";
+
+class MemoryAdapter implements StorageAdapter {
+  data: string | null = null;
+  async read() {
+    return this.data;
+  }
+  async write(value: string) {
+    this.data = value;
+  }
+}
+
+describe("saveExport", () => {
+  it("调用宿主的保存对话框并返回路径", async () => {
+    const store = new RadarStore(new MemoryAdapter());
+    await store.load();
+    const service = new RadarService({ http: async () => "", store });
+    let savedName = "";
+    const controller = new RadarController(
+      service,
+      {
+        os: "test",
+        openExternal: () => {},
+        saveFile: async (data, name) => {
+          savedName = name;
+          expect(data).toContain("\"settings\"");
+          return "/tmp/backup.json";
+        },
+      },
+      { version: "1.5.2", platform: "web" },
+    );
+    await expect(controller.invoke("saveExport")).resolves.toEqual({ saved: true, path: "/tmp/backup.json" });
+    expect(savedName).toMatch(/^steam-deal-radar-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  });
+});

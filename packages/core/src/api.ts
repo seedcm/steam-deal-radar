@@ -31,6 +31,7 @@ export interface RadarInvokeMap {
   checkUpdate: { payload: void; result: UpdateStatus };
   installUpdate: { payload: void; result: void };
   exportData: { payload: void; result: string };
+  saveExport: { payload: void; result: { saved: boolean; path?: string; copied?: boolean } };
   copyText: { payload: { text: string }; result: void };
   importData: { payload: { json: string }; result: void };
   quit: { payload: void; result: void };

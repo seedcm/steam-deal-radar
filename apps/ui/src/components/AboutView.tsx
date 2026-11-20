@@ -81,7 +81,7 @@ export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onO
           <div>
             <h2>关于</h2>
             <p>
-              Steam 折扣雷达 v{appInfo?.version ?? "1.5.1"} · {platformName(appInfo?.platform)}
+              Steam 折扣雷达 v{appInfo?.version ?? "1.5.2"} · {platformName(appInfo?.platform)}
             </p>
           </div>
         </div>
@@ -114,10 +114,17 @@ export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onO
               <RefreshCw size={13} /> 重启并安装
             </button>
           ) : (
-            <button type="button" className="btn btn--sm" onClick={onCheckUpdate} disabled={checking || downloading}>
-              <RefreshCw size={13} className={checking ? "spin" : undefined} />
-              {checking ? "检查中…" : "检查更新"}
-            </button>
+            <>
+              <button type="button" className="btn btn--sm" onClick={onCheckUpdate} disabled={checking || downloading}>
+                <RefreshCw size={13} className={checking ? "spin" : undefined} />
+                {checking ? "检查中…" : "检查更新"}
+              </button>
+              {(update.phase === "unsupported" || update.phase === "error") && (
+                <button type="button" className="btn btn--sm btn--primary" onClick={() => onOpen(RELEASES_URL)}>
+                  <Download size={13} /> 手动下载
+                </button>
+              )}
+            </>
           )}
         </Row>
 

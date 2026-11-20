@@ -15,7 +15,7 @@ export const STATE_VERSION: number = 1;
 
 export type SortKey = 'discount' | 'price' | 'originalPrice' | 'name' | 'review';
 export type SortDirection = 'asc' | 'desc';
-export type PlatformFilter = 'all' | 'windows' | 'linux';
+export type PlatformFilter = 'all' | 'windows' | 'mac' | 'linux';
 export type ThemeMode = 'dark' | 'light';
 export type NotifyKind = 'target' | 'newlow' | 'sale' | 'digest';
 export type ToastTone = 'info' | 'error' | 'success';

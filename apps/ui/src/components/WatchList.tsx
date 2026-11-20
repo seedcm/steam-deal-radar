@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Deal, WatchEntry, WatchQuote } from "@radar/core";
-import { formatMoney, formatRelativeTime } from "@radar/core";
+import { formatMoney, formatRelativeTime, moneyToInput, validateMoneyInput } from "@radar/core";
 import { Bell, BellOff, ExternalLink, Star, StarOff } from "lucide-react";
 import { Img } from "./Img";
 import { PlatformIcons } from "./PlatformIcons";
@@ -12,10 +12,12 @@ interface WatchListProps {
   currency: string;
   onSelect: (deal: Deal) => void;
   onRemove: (appId: number) => void;
-  onTarget: (appId: number, value: string) => void;
+  onTarget: (appId: number, targetPrice?: number) => void;
   onNotifyAny: (appId: number, value: boolean) => void;
   onOpenStore: (appId: number) => void;
-  onRefresh: () => void;
+  onBrowse: () => void;
+  query?: string;
+  onClearQuery?: () => void;
 }
 
 function dealFromQuote(entry: WatchEntry, quote?: WatchQuote): Deal {
@@ -42,7 +44,9 @@ export function WatchList({
   onTarget,
   onNotifyAny,
   onOpenStore,
-  onRefresh,
+  onBrowse,
+  query = "",
+  onClearQuery,
 }: WatchListProps) {
   const dealById = useMemo(() => new Map(deals.map((deal) => [deal.appId, deal])), [deals]);
 
@@ -63,6 +67,15 @@ export function WatchList({
       .sort((a, b) => b.discount - a.discount || a.entry.name.localeCompare(b.entry.name, "zh-Hans-CN"));
   }, [watchlist, quotes, dealById]);
 
+  const keyword = query.trim().toLowerCase();
+  const searched = keyword
+    ? rows.filter(
+        (row) =>
+          row.deal.name.toLowerCase().includes(keyword) ||
+          row.entry.name.toLowerCase().includes(keyword),
+      )
+    : rows;
+
   if (rows.length === 0) {
     return (
       <div className="empty">
@@ -71,15 +84,30 @@ export function WatchList({
         </div>
         <h3>关注列表还是空的</h3>
         <p>在折扣卡片右上角点一下星标，游戏就会进到这里。之后一到目标价，系统通知会提醒你。</p>
-        <button type="button" className="btn" onClick={onRefresh}>
-          先去刷一批折扣
+        <button type="button" className="btn" onClick={onBrowse}>
+          去找游戏
         </button>
       </div>
     );
   }
 
-  const onSale = rows.filter((row) => row.discount > 0);
-  const others = rows.filter((row) => row.discount === 0);
+  if (searched.length === 0) {
+    return (
+      <div className="empty">
+        <div className="empty__icon">
+          <Star size={26} />
+        </div>
+        <h3>没有找到「{query.trim()}」</h3>
+        <p>关注列表里没有匹配的游戏，换个名字试试，或清空搜索查看全部关注。</p>
+        <button type="button" className="btn" onClick={onClearQuery}>
+          清空搜索
+        </button>
+      </div>
+    );
+  }
+
+  const onSale = searched.filter((row) => row.discount > 0);
+  const others = searched.filter((row) => row.discount === 0);
 
   const renderRow = (row: (typeof rows)[number]) => {
     const { entry, quote, deal, discount, seenAt, synced } = row;
@@ -122,26 +150,12 @@ export function WatchList({
         </div>
 
         <div className="watch-row__actions">
-          <label className="target-input" title="设置目标价（回车保存）">
-            <span>{currency === "CNY" ? "¥" : currency}</span>
-            <input
-              defaultValue={entry.targetPrice != null ? (entry.targetPrice / 100).toFixed(0) : ""}
-              placeholder="目标价"
-              inputMode="decimal"
-              aria-label="目标价"
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  onTarget(entry.appId, (event.target as HTMLInputElement).value);
-                  (event.target as HTMLInputElement).blur();
-                }
-              }}
-              onBlur={(event) => {
-                if (event.target.value !== (entry.targetPrice != null ? (entry.targetPrice / 100).toFixed(0) : "")) {
-                  onTarget(entry.appId, event.target.value);
-                }
-              }}
-            />
-          </label>
+          <TargetEditor
+            appId={entry.appId}
+            targetPrice={entry.targetPrice ?? undefined}
+            currency={currency}
+            onSave={onTarget}
+          />
 
           <button
             type="button"
@@ -185,6 +199,69 @@ export function WatchList({
           <div className="watch-list">{others.map(renderRow)}</div>
         </>
       )}
+    </div>
+  );
+}
+
+
+function TargetEditor({
+  appId,
+  targetPrice,
+  currency,
+  onSave,
+}: {
+  appId: number;
+  targetPrice?: number;
+  currency: string;
+  onSave: (appId: number, targetPrice?: number) => void;
+}) {
+  const [value, setValue] = useState(moneyToInput(targetPrice));
+  const [saved, setSaved] = useState<number | undefined>(targetPrice);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setValue(moneyToInput(targetPrice));
+    setSaved(targetPrice);
+    setError(null);
+  }, [targetPrice]);
+
+  const commit = () => {
+    const result = validateMoneyInput(value);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setError(null);
+    if (result.cents !== saved) {
+      setSaved(result.cents);
+      onSave(appId, result.cents);
+    }
+  };
+
+  return (
+    <div className="target-editor">
+      <label className={`target-input ${error ? "is-error" : ""}`} title="设置目标价（回车保存）">
+        <span>{currency === "CNY" ? "¥" : currency}</span>
+        <input
+          value={value}
+          placeholder="目标价"
+          inputMode="decimal"
+          aria-label="目标价"
+          aria-invalid={Boolean(error)}
+          onChange={(event) => {
+            setValue(event.target.value);
+            if (error) setError(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              commit();
+              (event.target as HTMLInputElement).blur();
+            }
+          }}
+          onBlur={commit}
+        />
+      </label>
+      {error && <span className="target-input__error">{error}</span>}
     </div>
   );
 }

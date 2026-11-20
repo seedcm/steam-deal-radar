@@ -703,7 +703,7 @@ function parseSortKey(value: string | undefined): SortKey | undefined {
 }
 
 function parsePlatformFilter(value: string | undefined): PlatformFilter | undefined {
-  if (value === 'all' || value === 'windows' || value === 'linux') {
+  if (value === 'all' || value === 'windows' || value === 'mac' || value === 'linux') {
     return value;
   }
   return undefined;

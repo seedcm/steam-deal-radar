@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Deal, PricePoint, WatchEntry } from "@radar/core";
-import { formatCountdown, formatMoney, moneyToInput, parseMoneyInput } from "@radar/core";
+import { formatCountdown, formatMoney, moneyToInput, validateMoneyInput } from "@radar/core";
 import { Bell, BellOff, Check, Clock, ExternalLink, MessageSquare, Star, Tag, TrendingDown, X } from "lucide-react";
 import { api } from "../lib/client";
 import { Img } from "./Img";
@@ -14,6 +14,7 @@ interface DetailPanelProps {
   currency: string;
   isLow: boolean;
   translationTarget?: string;
+  translationProvider?: string;
   history: PricePoint[];
   onClose: () => void;
   onToggleWatch: (deal: Deal) => void;
@@ -28,6 +29,7 @@ export function DetailPanel({
   currency,
   isLow,
   translationTarget,
+  translationProvider,
   history,
   onClose,
   onToggleWatch,
@@ -39,6 +41,7 @@ export function DetailPanel({
   const [target, setTarget] = useState(moneyToInput(entry?.targetPrice));
   const [note, setNote] = useState(entry?.note ?? "");
   const [saving, setSaving] = useState(false);
+  const [targetError, setTargetError] = useState<string | null>(null);
   const [showReviews, setShowReviews] = useState(false);
 
   useEffect(() => {
@@ -59,16 +62,17 @@ export function DetailPanel({
 
   useEffect(() => {
     setTarget(moneyToInput(entry?.targetPrice));
+    setTargetError(null);
     setNote(entry?.note ?? "");
   }, [entry?.targetPrice, entry?.note, deal.appId]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closePanel();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, note, entry, deal.appId]);
 
   const finalText = deal.finalPriceText ?? formatMoney(deal.finalPrice, deal.currency ?? currency);
   const originalText = deal.originalPriceText ?? formatMoney(deal.originalPrice, deal.currency ?? currency);
@@ -83,24 +87,38 @@ export function DetailPanel({
     return { min: Math.min(...prices), max: Math.max(...prices), count: history.length };
   }, [history]);
 
+  const flushNote = () => {
+    if (note !== (entry?.note ?? "") && (entry || note.trim())) onSaveNote(deal.appId, note);
+  };
+
+  const closePanel = () => {
+    flushNote();
+    onClose();
+  };
+
   const saveTarget = () => {
-    const parsed = parseMoneyInput(target);
+    const result = validateMoneyInput(target);
+    if (!result.ok) {
+      setTargetError(result.message);
+      return;
+    }
+    setTargetError(null);
     if (!entry) {
-      onSaveTarget(deal.appId, parsed);
+      onSaveTarget(deal.appId, result.cents);
       return;
     }
     setSaving(true);
-    onSaveTarget(deal.appId, parsed);
+    onSaveTarget(deal.appId, result.cents);
     setTimeout(() => setSaving(false), 400);
   };
 
   return (
     <>
-      <div className="scrim" onClick={onClose} />
+      <div className="scrim" onClick={closePanel} />
       <aside className="drawer" role="dialog" aria-modal="true" aria-label={`${deal.name} 详情`}>
         <div className="drawer__hero">
           <Img src={deal.image ?? details?.image} alt={deal.name} />
-          <button type="button" className="icon-btn drawer__close" onClick={onClose} aria-label="关闭">
+          <button type="button" className="icon-btn drawer__close" onClick={closePanel} aria-label="关闭">
             <X size={17} />
           </button>
         </div>
@@ -171,23 +189,28 @@ export function DetailPanel({
               summary={deal.reviewSummary}
               reviewPercent={deal.reviewPercent}
               defaultTarget={translationTarget}
+              translationProvider={translationProvider}
             />
           )}
 
           <div className="field-block">
             <div className="field-block__label">
               <span>
-                目标价 <b>{entry?.targetPrice ? formatMoney(entry.targetPrice, currency) : "未设置"}</b>
+                目标价 <b>{entry?.targetPrice != null ? formatMoney(entry.targetPrice, currency) : "未设置"}</b>
               </span>
               <span className="hint">低于或等于该价格时优先提醒</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
-                className="number-input"
                 inputMode="decimal"
                 placeholder="例如 99"
                 value={target}
-                onChange={(event) => setTarget(event.target.value)}
+                aria-invalid={Boolean(targetError)}
+                className={`number-input ${targetError ? "is-error" : ""}`}
+                onChange={(event) => {
+                  setTarget(event.target.value);
+                  if (targetError) setTargetError(null);
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") saveTarget();
                 }}
@@ -201,8 +224,9 @@ export function DetailPanel({
                 保存
               </button>
             </div>
+            {targetError && <p className="hint hint--error">{targetError}</p>}
             <p className="hint" style={{ marginTop: 8 }}>
-              以 {currency} 计价。未关注时保存目标价会自动加入关注列表。
+              以 {currency} 计价，保留两位小数。未关注时保存目标价会自动加入关注列表。
             </p>
           </div>
 
@@ -227,16 +251,14 @@ export function DetailPanel({
           <div className="field-block">
             <div className="field-block__label">
               <span>备注</span>
-              <span className="hint">只保存在本地</span>
+              <span className="hint">{entry ? "只保存在本地" : "保存备注会自动加入关注"}</span>
             </div>
             <textarea
               className="note-input"
               placeholder="比如：等 50% 以下、和朋友一起买……"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              onBlur={() => {
-                if (entry && note !== (entry.note ?? "")) onSaveNote(deal.appId, note);
-              }}
+              onBlur={flushNote}
             />
           </div>
 

@@ -29,6 +29,7 @@ const DISCOUNT_STEPS = [
 const PLATFORMS: Array<{ value: PlatformFilter; label: string }> = [
   { value: "all", label: "全部平台" },
   { value: "windows", label: "Windows" },
+  { value: "mac", label: "macOS" },
   { value: "linux", label: "Linux" },
 ];
 

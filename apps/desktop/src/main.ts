@@ -459,7 +459,7 @@ async function checkForUpdates(manual: boolean): Promise<UpdateStatus> {
     };
   }
   if (!autoUpdater || !updaterConfigured) {
-    return { phase: "unsupported", message: "尚未配置更新源，请修改 electron-builder.yml 的 publish" };
+    return { phase: "unsupported", message: "当前安装方式暂不支持应用内更新，请手动下载新版本" };
   }
   if (!currentSettings?.autoUpdateApp && !manual) return { phase: "idle" };
   try {
@@ -467,7 +467,10 @@ async function checkForUpdates(manual: boolean): Promise<UpdateStatus> {
     await new Promise((resolve) => setTimeout(resolve, 400));
     return updateStatus;
   } catch (error) {
-    const status: UpdateStatus = { phase: "error", message: error instanceof Error ? error.message : "检查更新失败" };
+    const status: UpdateStatus = {
+      phase: "error",
+      message: "检查更新失败，请检查网络后重试，或手动下载新版本",
+    };
     setUpdate(status);
     return status;
   }

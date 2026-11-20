@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { GameReview, ReviewType } from "@radar/core";
-import { TRANSLATION_TARGETS, filterReviews } from "@radar/core";
+import { TRANSLATION_TARGETS, filterReviews, friendlyError } from "@radar/core";
 import { ChevronDown, Languages, Laugh, Loader2, MessageSquare, RefreshCw, ThumbsUp } from "lucide-react";
 import { api } from "../lib/client";
 
@@ -10,6 +10,8 @@ interface ReviewListProps {
   reviewPercent?: number;
   /** 默认翻译目标，来自设置 */
   defaultTarget?: string;
+  /** 翻译源变化时清掉旧错误 */
+  translationProvider?: string;
 }
 
 interface TranslationState {
@@ -57,7 +59,7 @@ function dedupe(list: GameReview[]): GameReview[] {
 }
 
 /** 评价详情：默认国区，按语言切换；非中文评价可一键免费翻译 */
-export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: ReviewListProps) {
+export function ReviewList({ appId, summary, reviewPercent, defaultTarget, translationProvider }: ReviewListProps) {
   const [reviews, setReviews] = useState<GameReview[]>([]);
   const [next, setNext] = useState<Record<string, string> | undefined>();
   const [loading, setLoading] = useState(false);
@@ -77,7 +79,7 @@ export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: Rev
         setReviews((previous) => dedupe([...previous, ...page.reviews]));
         setNext(page.next);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "评价加载失败");
+        setError(friendlyError(err));
       } finally {
         setLoading(false);
       }
@@ -91,6 +93,10 @@ export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: Rev
     setTranslations({});
     void load();
   }, [load]);
+
+  useEffect(() => {
+    setTranslations({});
+  }, [translationProvider]);
 
   const filtered = useMemo(() => filterReviews(reviews, types), [reviews, types]);
   const upCount = useMemo(() => reviews.filter((review) => review.votedUp).length, [reviews]);
@@ -133,7 +139,7 @@ export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: Rev
     } catch (err) {
       setTranslations((previous) => ({
         ...previous,
-        [review.id]: { error: err instanceof Error ? err.message : "翻译失败", shown: true },
+        [review.id]: { error: friendlyError(err), shown: true },
       }));
     }
   };
@@ -228,6 +234,13 @@ export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: Rev
           <button type="button" className="btn btn--sm" onClick={() => void load()}>
             <RefreshCw size={12} /> 重试
           </button>
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={() => void api.openExternal(`https://store.steampowered.com/app/${appId}/`)}
+          >
+            去 Steam 查看
+          </button>
         </div>
       )}
 
@@ -281,6 +294,20 @@ export function ReviewList({ appId, summary, reviewPercent, defaultTarget }: Rev
                     {translation.error ? "翻译失败" : `机器翻译 · ${translation.engine ?? "在线"} · 译为${targetLabel}`}
                   </span>
                   <p>{translation.error ?? translation.text}</p>
+                  {translation.error && (
+                    <div className="review-item__error-actions">
+                      <button type="button" className="btn btn--sm" onClick={() => void translateReview(review)}>
+                        <RefreshCw size={11} /> 重试
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--sm"
+                        onClick={() => void api.openExternal(`https://store.steampowered.com/app/${appId}/`)}
+                      >
+                        去 Steam 查看
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

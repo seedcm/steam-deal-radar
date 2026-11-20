@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   REGIONS,
   formatRelativeTime,
-  parseMoneyInput,
   pickDeals,
   regionCurrency,
   type Deal,
@@ -211,8 +210,8 @@ export default function App() {
   );
 
   const updateTargetFromRow = useCallback(
-    async (appId: number, value: string) => {
-      await api.updateWatch(appId, { targetPrice: parseMoneyInput(value) ?? null });
+    async (appId: number, targetPrice?: number) => {
+      await api.updateWatch(appId, { targetPrice: targetPrice ?? null });
       await radar.sync();
     },
     [radar],
@@ -282,7 +281,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.5.1"}
+          v{radar.appInfo?.version ?? "1.5.2"}
         </div>
       </nav>
 
@@ -397,7 +396,12 @@ export default function App() {
               onTarget={(appId, value) => void updateTargetFromRow(appId, value)}
               onNotifyAny={(appId, value) => void setNotifyAny(appId, value)}
               onOpenStore={(appId) => void api.openStore(appId)}
-              onRefresh={() => void radar.refresh(true)}
+              onBrowse={() => {
+                setView("deals");
+                setQuery("");
+              }}
+              query={query}
+              onClearQuery={() => setQuery("")}
             />
           )}
 
@@ -440,6 +444,7 @@ export default function App() {
           currency={currency}
           isLow={lowIds.has(selected.appId)}
           translationTarget={settings?.translationTarget}
+          translationProvider={settings?.translationProvider}
           history={snapshot?.history[String(selected.appId)] ?? []}
           onClose={() => setSelected(null)}
           onToggleWatch={(deal) => void radar.toggleWatch(deal)}

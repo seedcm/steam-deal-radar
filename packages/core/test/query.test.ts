@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterDeals, filterReviews, matchesQuery, sortDeals } from "../src/query";
-import { formatMoney, formatCountdown, parseMoneyInput, moneyToInput, sanitizeSettings, regionCurrency } from "../src/format";
+import { formatMoney, formatCountdown, parseMoneyInput, moneyToInput, sanitizeSettings, regionCurrency, validateMoneyInput, friendlyError } from "../src/format";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Deal } from "../src/types";
 
@@ -25,6 +25,7 @@ describe("filterDeals", () => {
     expect(filterDeals(deals, { minDiscount: 40 })).toHaveLength(2);
     expect(filterDeals(deals, { platform: "linux" })).toHaveLength(2);
     expect(filterDeals(deals, { platform: "windows" })).toHaveLength(2);
+    expect(filterDeals(deals, { platform: "mac" })).toHaveLength(1);
     expect(filterDeals(deals, { watchOnly: true, watchIds: new Set([1, 3]) })).toHaveLength(2);
     expect(filterDeals(deals, { hideWatched: true, watchIds: [1] })).toHaveLength(2);
   });
@@ -66,8 +67,19 @@ describe("价格格式化", () => {
     expect(parseMoneyInput("¥ 149.5")).toBe(14950);
     expect(parseMoneyInput("")).toBeUndefined();
     expect(parseMoneyInput("abc")).toBeUndefined();
+    expect(validateMoneyInput("99.99")).toEqual({ ok: true, cents: 9999 });
+    expect(validateMoneyInput("")).toEqual({ ok: true, cents: undefined });
+    expect(validateMoneyInput("-10").ok).toBe(false);
+    expect(validateMoneyInput("abc").ok).toBe(false);
+    expect(validateMoneyInput("12.345").ok).toBe(false);
     expect(regionCurrency("cn")).toBe("CNY");
     expect(regionCurrency("unknown")).toBe("USD");
+  });
+
+  it("网络错误转成中文", () => {
+    expect(friendlyError(new Error("fetch failed"))).toContain("网络请求失败");
+    expect(friendlyError(new Error("net::ERR_NAME_NOT_RESOLVED"))).toContain("域名解析");
+    expect(friendlyError(new Error("MyMemory 今日额度已用完"))).toContain("额度");
   });
 
   it("倒计时文案", () => {

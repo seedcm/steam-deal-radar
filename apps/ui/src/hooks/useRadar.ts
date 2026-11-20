@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppInfo, Deal, Snapshot, UpdateStatus } from "@radar/core";
 import { api } from "../lib/client";
-import { onEvent } from "../lib/bridge";
+import { isHarmony, onEvent } from "../lib/bridge";
 
 export interface ToastItem {
   id: number;
@@ -154,11 +154,18 @@ export function useRadar() {
 
   const exportData = useCallback(async () => {
     try {
-      const json = await api.exportData();
-      await api.copyText(json);
-      toast("数据已复制到剪贴板，可粘贴保存为 .json", "success");
+      if (isHarmony()) {
+        const json = await api.exportData();
+        await api.copyText(json);
+        toast("当前平台暂不支持选择文件，备份已复制到剪贴板", "info");
+        return;
+      }
+      const result = await api.saveExport();
+      if (result.saved) toast(`备份已保存到 ${result.path}`, "success");
+      else if (result.copied) toast("当前平台不支持选择文件，备份已复制到剪贴板", "info");
+      else toast("已取消保存", "info");
     } catch (error) {
-      toast(error instanceof Error ? error.message : "复制失败，请检查剪贴板权限", "error");
+      toast(error instanceof Error ? error.message : "导出失败", "error");
     }
   }, [toast]);
 

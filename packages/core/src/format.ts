@@ -80,6 +80,51 @@ export function moneyToInput(minor: number | undefined | null): string {
   return (minor / 100).toFixed(2);
 }
 
+/** 严格校验价格输入：空=清除；负数/乱填返回错误，不做静默修正 */
+export function validateMoneyInput(text: string): { ok: true; cents?: number } | { ok: false; message: string } {
+  const trimmed = text.trim().replace(/,/g, "");
+  if (!trimmed) return { ok: true, cents: undefined };
+  if (trimmed.startsWith("-")) return { ok: false, message: "目标价不能为负数" };
+  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) {
+    return { ok: false, message: "请输入有效金额，最多两位小数（例如 99.99）" };
+  }
+  const value = Number(trimmed);
+  if (!Number.isFinite(value)) return { ok: false, message: "请输入有效金额" };
+  if (value > 1_000_000) return { ok: false, message: "金额过大，请检查是否输入有误" };
+  return { ok: true, cents: Math.round(value * 100) };
+}
+
+/** 把网络/接口错误转成用户能看懂的中文 */
+export function friendlyError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (!raw) return "网络请求失败，请检查网络或代理后重试";
+  if (/[\u4e00-\u9fa5]/.test(raw)) return raw;
+  const text = raw.toLowerCase();
+  if (text.includes("fetch failed") || text.includes("failed to fetch") || text.includes("networkerror")) {
+    return "网络请求失败，请检查网络或代理后重试";
+  }
+  if (text.includes("err_name_not_resolved") || text.includes("enotfound")) {
+    return "域名解析失败，请检查网络或代理设置";
+  }
+  if (text.includes("err_proxy") || text.includes("proxy connection")) {
+    return "代理连接失败，请检查代理是否开启、端口是否正确";
+  }
+  if (text.includes("err_internet_disconnected") || text.includes("offline")) {
+    return "当前网络不可用，请检查网络连接";
+  }
+  if (text.includes("timeout") || text.includes("timed out") || text.includes("aborted")) {
+    return "请求超时，请稍后重试";
+  }
+  if (text.includes("cert") || text.includes("certificate")) {
+    return "证书校验失败；若使用本地加速工具，可在「设置 → 网络」开启「允许自签名证书」";
+  }
+  if (text.includes("http 429")) return "请求过于频繁，请稍后再试";
+  if (text.includes("http 403")) return "Steam 拒绝了请求（HTTP 403），可尝试更换代理节点";
+  const http = raw.match(/http\s+(\d{3})/i);
+  if (http) return `Steam 返回 HTTP ${http[1]}，请稍后重试`;
+  return "网络请求失败，请检查网络或代理后重试";
+}
+
 /** 解析用户输入的价格（元/当地货币），返回「分」 */
 export function parseMoneyInput(text: string): number | undefined {
   const cleaned = text.replace(/[^\d.]/g, "").trim();

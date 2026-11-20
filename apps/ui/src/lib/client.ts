@@ -33,6 +33,8 @@ export const api = {
   checkUpdate: () => invoke("checkUpdate") as Promise<UpdateStatus>,
   installUpdate: () => invoke("installUpdate") as Promise<void>,
   exportData: () => invoke("exportData") as Promise<string>,
+  saveExport: () =>
+    invoke("saveExport") as Promise<{ saved: boolean; path?: string; copied?: boolean }>,
   copyText: (text: string) => invoke("copyText", { text }) as Promise<void>,
   importData: (json: string) => invoke("importData", { json }) as Promise<void>,
   quit: () => invoke("quit") as Promise<void>,

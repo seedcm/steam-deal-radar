@@ -486,10 +486,10 @@ export function SettingsView({
           <span className="hint mono">{appInfo?.dataDir ?? "本地存储"}</span>
         </Field>
 
-        <Field title="导出备份" desc="把关注列表、史低记录和设置复制到剪贴板">
+        <Field title="导出备份" desc="选择位置保存为 JSON 文件，包含关注、史低与设置（不含翻译 API Key）">
           <button type="button" className="btn btn--sm" onClick={onExport}>
             <Download size={13} />
-            导出
+            导出备份
           </button>
         </Field>
 
