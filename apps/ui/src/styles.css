@@ -2198,3 +2198,26 @@ textarea.note-input {
   font-size: 11px;
   color: var(--muted);
 }
+
+/* ---------- 汇率换算 / 目录控件 ---------- */
+
+.price-fx {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.deal-box__fx {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.catalog__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}

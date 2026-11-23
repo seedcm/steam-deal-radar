@@ -20,6 +20,8 @@ export interface Platforms {
 export interface Deal {
   appId: number;
   name: string;
+  /** Steam 标签 id 列表（用于按类别筛选） */
+  tagIds?: number[];
   image?: string;
   discountPercent: number;
   /** 原价（分） */
@@ -115,6 +117,8 @@ export interface Settings {
   proxyMode: ProxyMode;
   /** 手动代理规则，如 http://127.0.0.1:7890 */
   proxyRules: string;
+  /** 汇率换算的目标货币（卡片上显示“约等于”金额） */
+  homeCurrency: string;
 }
 
 export interface AppNotification {
@@ -243,6 +247,24 @@ export const REGIONS: Array<{ code: string; label: string; currency: string; lan
   { code: "ru", label: "俄罗斯", currency: "RUB", language: "russian" },
   { code: "br", label: "巴西", currency: "BRL", language: "brazilian" },
 ];
+
+/** 商店类别（Steam 标签 id → 名称） */
+export const STORE_CATEGORIES: Array<{ id: number; label: string }> = [
+  { id: 19, label: "动作" },
+  { id: 21, label: "冒险" },
+  { id: 9, label: "策略" },
+  { id: 122, label: "角色扮演" },
+  { id: 599, label: "模拟" },
+  { id: 701, label: "体育" },
+  { id: 699, label: "竞速" },
+  { id: 492, label: "独立" },
+  { id: 597, label: "休闲" },
+  { id: 128, label: "大型多人在线" },
+  { id: 1667, label: "恐怖" },
+  { id: 1662, label: "生存" },
+];
+
+export const HOME_CURRENCIES = ["CNY", "USD", "HKD", "TWD", "JPY", "EUR", "GBP", "RUB", "BRL"];
 
 export const TRANSLATION_TARGETS: Array<{ code: string; label: string }> = [
   { code: "zh-CN", label: "中文" },

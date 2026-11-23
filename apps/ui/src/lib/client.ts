@@ -36,7 +36,9 @@ export const api = {
   checkUpdate: () => invoke("checkUpdate") as Promise<UpdateStatus>,
   installUpdate: () => invoke("installUpdate") as Promise<void>,
   exportData: () => invoke("exportData") as Promise<string>,
-  catalog: (term = "", page = 0) => invoke("catalog", { term, page }) as Promise<Deal[]>,
+  catalog: (term = "", page = 0, options?: { free?: boolean; category?: number }) =>
+    invoke("catalog", { term, page, ...options }) as Promise<Deal[]>,
+  fxRates: () => invoke("fxRates") as Promise<Record<string, number> | null>,
   steamLogin: () => invoke("steamLogin") as Promise<SteamAccount>,
   steamLogout: () => invoke("steamLogout") as Promise<void>,
   steamProfile: (steamId: string) => invoke("steamProfile", { steamId }) as Promise<SteamAccount>,

@@ -125,6 +125,20 @@ export function friendlyError(error: unknown): string {
   return "网络请求失败，请检查网络或代理后重试";
 }
 
+/** 把「分」按汇率换算成目标货币；rates 为 { 币种: 兑 1 USD 的汇率 } */
+export function convertMoney(
+  cents: number | undefined | null,
+  from: string,
+  to: string,
+  rates?: Record<string, number>,
+): number | null {
+  if (cents == null || !rates || !from || !to || from === to) return null;
+  const fromRate = rates[from];
+  const toRate = rates[to];
+  if (!fromRate || !toRate) return null;
+  return Math.round((cents / fromRate) * toRate);
+}
+
 /** 解析用户输入的价格（元/当地货币），返回「分」 */
 export function parseMoneyInput(text: string): number | undefined {
   const cleaned = text.replace(/[^\d.]/g, "").trim();
@@ -183,6 +197,7 @@ export function sanitizeSettings(patch: Partial<Settings>, current: Settings): S
   if (next.uiScale > 0) next.uiScale = clamp(next.uiScale, 0.8, 1.8);
   next.allowInsecureCert = Boolean(next.allowInsecureCert);
   if (!["system", "direct", "manual"].includes(next.proxyMode)) next.proxyMode = "system";
+  next.homeCurrency = String(next.homeCurrency || "CNY").toUpperCase().slice(0, 3) || "CNY";
   next.proxyRules = String(next.proxyRules ?? "").trim();
   next.quietHours.start = clamp(Math.round(next.quietHours.start ?? 23), 0, 23);
   next.quietHours.end = clamp(Math.round(next.quietHours.end ?? 8), 0, 23);

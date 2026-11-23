@@ -372,14 +372,52 @@ export class RadarService {
     };
   }
 
-  /** 全部游戏目录（含非打折），specials=0，按好评排序；term 为空时返回热门游戏 */
-  async catalog(term = "", page = 0): Promise<Deal[]> {
+  /** 全部游戏目录（含非打折），specials=0，按好评排序；free 只看免费，category 按 Steam 标签 id 筛选 */
+  async catalog(term = "", page = 0, options?: { free?: boolean; category?: number }): Promise<Deal[]> {
     const settings = this.store.settings;
     const currency = regionCurrency(settings.country);
-    const body = await this.http(
-      buildCatalogUrl({ country: settings.country, language: settings.language }, page, 100, term),
-    );
-    return parseSearchPayloadAll(body, currency);
+    const free = Boolean(options?.free);
+    const category = options?.category;
+    const out: Deal[] = [];
+    let current = page;
+    // Steam 已不再服务端支持匿名按标签过滤，这里按 tagIds 在客户端筛选，多翻几页凑够结果
+    while (current < page + 8) {
+      const body = await this.http(
+        buildCatalogUrl({ country: settings.country, language: settings.language }, current, 100, term, free),
+      );
+      const parsed = parseSearchPayloadAll(body, currency);
+      if (parsed.length === 0) break;
+      const matched = category ? parsed.filter((deal) => deal.tagIds?.includes(category)) : parsed;
+      out.push(...matched);
+      if (!category || out.length >= 100) break;
+      current += 1;
+    }
+    return out;
+  }
+
+  private fxCache: { at: number; rates: Record<string, number> } | null = null;
+
+  /** 汇率（各币种兑 1 USD），供界面做「约等于」换算；失败返回 null */
+  async fxRates(): Promise<Record<string, number> | null> {
+    const now = Date.now();
+    if (this.fxCache && now - this.fxCache.at < 6 * 3_600_000) return this.fxCache.rates;
+    const sources = [
+      "https://open.er-api.com/v6/latest/USD",
+      "https://api.frankfurter.dev/v1/latest?base=USD",
+    ];
+    for (const url of sources) {
+      try {
+        const body = await this.http(url);
+        const json = JSON.parse(body) as { rates?: Record<string, number> };
+        if (json.rates && Object.keys(json.rates).length > 0) {
+          this.fxCache = { at: now, rates: json.rates };
+          return json.rates;
+        }
+      } catch {
+        // 尝试下一个数据源
+      }
+    }
+    return this.fxCache?.rates ?? null;
   }
 
   async steamProfile(steamId: string): Promise<SteamAccount> {

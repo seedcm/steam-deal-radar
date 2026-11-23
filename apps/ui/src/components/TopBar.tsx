@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, RefreshCw, Search, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Gift, RefreshCw, Search, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PlatformFilter, Settings, SortKey } from "@radar/core";
 import { DEFAULT_SORT_DIRECTION, REGIONS, SORT_LABELS } from "@radar/core";
@@ -20,6 +20,9 @@ interface TopBarProps {
   onRegionChange?: (code: string) => void;
   /** 是否显示折扣筛选（折扣力度/平台/只看关注/排序），全部游戏页不需要 */
   showDealFilters?: boolean;
+  /** 只看免费游戏 */
+  freeMode?: boolean;
+  onToggleFreeMode?: () => void;
 }
 
 const DISCOUNT_STEPS = [
@@ -52,6 +55,8 @@ export function TopBar({
   onChangeSettings,
   onRegionChange,
   showDealFilters = true,
+  freeMode = false,
+  onToggleFreeMode,
 }: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -145,6 +150,17 @@ export function TopBar({
             </select>
             <ChevronDown size={12} />
           </div>
+
+          <button
+            type="button"
+            className={`chip chip--icon ${freeMode ? "is-active" : ""}`}
+            onClick={onToggleFreeMode}
+            aria-pressed={freeMode}
+            title="只看免费游戏"
+          >
+            <Gift size={12} />
+            免费
+          </button>
 
           <div className="select select--compact">
             <select

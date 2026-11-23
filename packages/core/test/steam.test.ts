@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCatalogUrl,
   buildOpenIdAuthUrl,
+  parseSearchPayloadAll,
   parseGamesXml,
   parseProfileXml,
   parseWishlistData,
@@ -300,6 +301,16 @@ describe("目录与账号解析", () => {
     expect(url).toContain("l=english");
     expect(url).toContain("Hades");
     expect(url).toContain("start=100");
+  });
+
+  it("buildCatalogUrl 支持免费与标签解析", () => {
+    expect(buildCatalogUrl({ country: "cn", language: "schinese" }, 0, 100, "", true)).toContain("maxprice=free");
+    const html = `<a data-ds-appid="123" data-ds-tagids="[492,597]"><span class="title">Cat Game</span>
+      <div class="search_price_discount_combined" data-price-final="0"><div class="discount_final_price free">免费</div></div></a>`;
+    const parsed = parseSearchPayloadAll(html, "CNY");
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.tagIds).toEqual([492, 597]);
+    expect(parsed[0]?.finalPrice).toBe(0);
   });
 
   it("buildOpenIdAuthUrl 包含回跳地址", () => {

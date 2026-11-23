@@ -172,9 +172,16 @@ export class RadarController {
         return undefined;
       }
       case "catalog": {
-        const { term = "", page = 0 } = (payload ?? {}) as { term?: string; page?: number };
-        return this.service.catalog(term, page);
+        const { term = "", page = 0, free = false, category } = (payload ?? {}) as {
+          term?: string;
+          page?: number;
+          free?: boolean;
+          category?: number;
+        };
+        return this.service.catalog(term, page, { free, category });
       }
+      case "fxRates":
+        return this.service.fxRates();
       case "steamLogin": {
         if (!this.host.steamLogin) throw new Error("当前平台不支持 Steam 登录（仅桌面端可用）");
         const steamId = await this.host.steamLogin();

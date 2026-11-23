@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   allowInsecureCert: false,
   proxyMode: "system",
   proxyRules: "",
+  homeCurrency: "CNY",
 };
 
 export interface PersistedState {

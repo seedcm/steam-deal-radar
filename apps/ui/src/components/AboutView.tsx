@@ -81,7 +81,7 @@ export function AboutView({ appInfo, update, onCheckUpdate, onInstallUpdate, onO
           <div>
             <h2>关于</h2>
             <p>
-              Steam 折扣雷达 v{appInfo?.version ?? "1.6.0"} · {platformName(appInfo?.platform)}
+              Steam 折扣雷达 v{appInfo?.version ?? "1.6.1"} · {platformName(appInfo?.platform)}
             </p>
           </div>
         </div>

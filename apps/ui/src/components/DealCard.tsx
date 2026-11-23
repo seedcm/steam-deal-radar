@@ -1,5 +1,5 @@
 import type { Deal } from "@radar/core";
-import { formatCountdown, formatMoney } from "@radar/core";
+import { convertMoney, formatCountdown, formatMoney } from "@radar/core";
 import { Star, ThumbsUp } from "lucide-react";
 import { Img } from "./Img";
 import { PlatformIcons } from "./PlatformIcons";
@@ -11,9 +11,11 @@ interface DealCardProps {
   currency: string;
   onSelect: (deal: Deal) => void;
   onToggleWatch: (deal: Deal) => void;
+  /** 汇率换算：home 为目标币种，rates 为 { 币种: 兑 1 USD 汇率 } */
+  fx?: { home: string; rates?: Record<string, number> };
 }
 
-export function DealCard({ deal, watched, isLow, currency, onSelect, onToggleWatch }: DealCardProps) {
+export function DealCard({ deal, watched, isLow, currency, onSelect, onToggleWatch, fx }: DealCardProps) {
   const finalText = deal.finalPriceText ?? formatMoney(deal.finalPrice, deal.currency ?? currency);
   const originalText = deal.originalPriceText ?? formatMoney(deal.originalPrice, deal.currency ?? currency);
   const countdown = formatCountdown(deal.discountEndsAt);
@@ -74,6 +76,11 @@ export function DealCard({ deal, watched, isLow, currency, onSelect, onToggleWat
         <div className="price-row">
           <span className={`price ${isLow ? "price--low" : ""}`}>{finalText}</span>
           {discounted && <span className="price-old">{originalText}</span>}
+          {fx && deal.currency && deal.currency !== fx.home && deal.finalPrice != null && (
+            <span className="price-fx">
+              ≈ {formatMoney(convertMoney(deal.finalPrice, deal.currency, fx.home, fx.rates) ?? undefined, fx.home)}
+            </span>
+          )}
           {isLow && <span className="tag-low">史低</span>}
         </div>
       </div>

@@ -111,6 +111,10 @@ export function parseSearchResults(html: string, currency = "CNY", includeAll = 
       finalPriceText: finalText ? decodeEntities(finalText).trim() : undefined,
       currency,
       platforms: parsePlatforms(block),
+      tagIds: (firstGroup(block, /data-ds-tagids="\[([^\]]*)\]"/) ?? "")
+        .split(",")
+        .map((item) => Number(item))
+        .filter((item) => Number.isFinite(item) && item > 0),
       releaseDate: stripTags(firstGroup(block, /search_released[^"]*">([\s\S]*?)<\/div>/) ?? "") || undefined,
       reviewSummary: reviewSummary || undefined,
       reviewPercent: Number.isFinite(reviewPercent) ? reviewPercent : undefined,
@@ -413,12 +417,13 @@ export function parseReviewsHtml(html: string): ReviewPage {
 
 /* ---------- 全部游戏（含非打折）与 Steam 账号 ---------- */
 
-/** 商店搜索结果：specials=0 表示不限打折（含非打折游戏） */
+/** 商店搜索结果：specials=0 表示不限打折（含非打折游戏）；free 时只看免费游戏 */
 export function buildCatalogUrl(
   opts: DealQueryOptions,
   page: number,
   pageSize = 100,
   term = "",
+  free = false,
 ): string {
   const params = new URLSearchParams({
     term: term.trim(),
@@ -430,6 +435,7 @@ export function buildCatalogUrl(
     cc: opts.country,
     l: opts.language,
   });
+  if (free) params.set("maxprice", "free");
   return `${STORE}/search/results/?${params.toString()}`;
 }
 

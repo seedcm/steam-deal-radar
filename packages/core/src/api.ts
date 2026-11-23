@@ -34,7 +34,8 @@ export interface RadarInvokeMap {
   checkUpdate: { payload: void; result: UpdateStatus };
   installUpdate: { payload: void; result: void };
   exportData: { payload: void; result: string };
-  catalog: { payload: { term?: string; page?: number }; result: Deal[] };
+  catalog: { payload: { term?: string; page?: number; free?: boolean; category?: number }; result: Deal[] };
+  fxRates: { payload: void; result: Record<string, number> | null };
   steamLogin: { payload: void; result: SteamAccount };
   steamLogout: { payload: void; result: void };
   steamProfile: { payload: { steamId: string }; result: SteamAccount };

@@ -60,12 +60,26 @@ const storage: StorageAdapter = {
   },
 };
 
+/** 区域切换要跟随 cc 参数，用无 Cookie 的独立会话请求商店搜索/特惠/搜索接口 */
+let anonSession: Electron.Session | null = null;
+const ANON_PREFIXES = [
+  "https://store.steampowered.com/search/",
+  "https://store.steampowered.com/api/featuredcategories",
+  "https://store.steampowered.com/api/storesearch",
+];
+
 async function httpGet(url: string, init?: HttpRequestInit): Promise<string> {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), 25_000);
   try {
     // 用 Electron 的 net.fetch（Chromium 网络栈）：会走系统代理，并处理证书/双栈回退
-    const response = await net.fetch(url, {
+    const useAnonymous = ANON_PREFIXES.some((prefix) => url.startsWith(prefix));
+    const fetcher = (target: string, requestInit: RequestInit) => {
+      if (!useAnonymous) return net.fetch(target, requestInit);
+      anonSession ??= session.fromPartition("radar-anon", { cache: false });
+      return anonSession.fetch(target, requestInit);
+    };
+    const response = await fetcher(url, {
       method: init?.method ?? "GET",
       body: init?.body,
       headers: {

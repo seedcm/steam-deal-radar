@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterDeals, filterReviews, matchesQuery, sortDeals } from "../src/query";
-import { formatMoney, formatCountdown, parseMoneyInput, moneyToInput, sanitizeSettings, regionCurrency, validateMoneyInput, friendlyError } from "../src/format";
+import { formatMoney, formatCountdown, parseMoneyInput, moneyToInput, sanitizeSettings, regionCurrency, validateMoneyInput, friendlyError, convertMoney } from "../src/format";
 import { DEFAULT_SETTINGS } from "../src/store";
 import type { Deal } from "../src/types";
 
@@ -74,6 +74,13 @@ describe("价格格式化", () => {
     expect(validateMoneyInput("12.345").ok).toBe(false);
     expect(regionCurrency("cn")).toBe("CNY");
     expect(regionCurrency("unknown")).toBe("USD");
+  });
+
+  it("汇率换算", () => {
+    const rates = { USD: 1, CNY: 7.2, JPY: 150 };
+    expect(convertMoney(10000, "JPY", "CNY", rates)).toBe(480);
+    expect(convertMoney(720, "CNY", "CNY", rates)).toBeNull();
+    expect(convertMoney(720, "CNY", "EUR", rates)).toBeNull();
   });
 
   it("网络错误转成中文", () => {

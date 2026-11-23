@@ -64,6 +64,8 @@ export default function App() {
   const [selected, setSelected] = useState<Deal | null>(null);
   const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
+  const [freeMode, setFreeMode] = useState(false);
+  const [fxRates, setFxRates] = useState<Record<string, number> | undefined>();
 
   const settings = snapshot?.settings;
   const currency = regionCurrency(settings?.country ?? "cn");
@@ -75,7 +77,7 @@ export default function App() {
 
   // 全站搜索：本地折扣里找不到时，向 Steam 商店补一次
   useEffect(() => {
-    if (view !== "deals" || query.trim().length < 2) {
+    if (view !== "deals" || freeMode || query.trim().length < 2) {
       setRemoteHits([]);
       setRemoteLoading(false);
       return;
@@ -93,7 +95,24 @@ export default function App() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [query, view]);
+  }, [query, view, freeMode]);
+
+  // 汇率：每次刷新后拉取一次（服务端 6 小时缓存）
+  useEffect(() => {
+    let alive = true;
+    api
+      .fxRates()
+      .then((rates) => alive && setFxRates(rates ?? undefined))
+      .catch(() => alive && setFxRates(undefined));
+    return () => {
+      alive = false;
+    };
+  }, [snapshot?.meta.lastRefreshAt]);
+
+  const fx = useMemo(
+    () => ({ home: settings?.homeCurrency ?? "CNY", rates: fxRates }),
+    [settings?.homeCurrency, fxRates],
+  );
 
   const deals = snapshot?.deals ?? [];
   const filtered = useMemo(
@@ -348,7 +367,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.6.0"}
+          v{radar.appInfo?.version ?? "1.6.1"}
         </div>
       </nav>
 
@@ -364,6 +383,8 @@ export default function App() {
           settings={view === "deals" || view === "catalog" ? settings ?? null : null}
           showDealFilters={view === "deals"}
           onRegionChange={(code) => void changeRegion(code)}
+          freeMode={freeMode}
+          onToggleFreeMode={() => setFreeMode((value) => !value)}
           watchOnly={watchOnly}
           onToggleWatchOnly={() => setWatchOnly((value) => !value)}
           onChangeSettings={changeSettings}
@@ -406,8 +427,20 @@ export default function App() {
 
           {view === "deals" && (
             <>
+              {freeMode && (
+                <CatalogView
+                  variant="free"
+                  query={query}
+                  currency={currency}
+                  watchIds={watchIds}
+                  lowIds={lowIds}
+                  onSelect={openDeal}
+                  onToggleWatch={(deal) => void radar.toggleWatch(deal)}
+                  fx={fx}
+                />
+              )}
 
-              {query.trim().length >= 2 && (shownRemote.length > 0 || remoteLoading) && (
+              {!freeMode && query.trim().length >= 2 && (shownRemote.length > 0 || remoteLoading) && (
                 <>
                   <div className="section-head">
                     <h2>
@@ -438,7 +471,7 @@ export default function App() {
                 </>
               )}
 
-              {!hideLocalGrid && (
+              {!freeMode && !hideLocalGrid && (
                 <DealGrid
                   deals={filtered}
                   watchIds={watchIds}
@@ -449,6 +482,7 @@ export default function App() {
                   onSelect={openDeal}
                   onToggleWatch={(deal) => void radar.toggleWatch(deal)}
                   onRefresh={() => void radar.refresh(true)}
+                  fx={fx}
                 />
               )}
             </>
@@ -462,6 +496,7 @@ export default function App() {
               lowIds={lowIds}
               onSelect={openDeal}
               onToggleWatch={(deal) => void radar.toggleWatch(deal)}
+              fx={fx}
             />
           )}
 
@@ -537,6 +572,7 @@ export default function App() {
           isLow={lowIds.has(selected.appId)}
           translationTarget={settings?.translationTarget}
           translationProvider={settings?.translationProvider}
+          fx={fx}
           history={snapshot?.history[String(selected.appId)] ?? []}
           onClose={() => setSelected(null)}
           onToggleWatch={(deal) => void radar.toggleWatch(deal)}

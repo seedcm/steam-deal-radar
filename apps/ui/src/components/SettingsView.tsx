@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { AppInfo, ProxyMode, Settings, TranslationProvider } from "@radar/core";
-import { REGIONS, TRANSLATION_TARGETS, formatDateTime, formatRelativeTime } from "@radar/core";
+import { HOME_CURRENCIES, REGIONS, TRANSLATION_TARGETS, formatDateTime, formatRelativeTime } from "@radar/core";
 import {
   BellRing,
   ChevronDown,
@@ -103,6 +103,23 @@ export function SettingsView({
             <p>价格会随 Steam 区域变化，切换后会按新币种重新抓取</p>
           </div>
         </div>
+
+        <Field title="汇率换算目标" desc="切换区域后，卡片和详情会显示「约等于」该货币的金额">
+          <div className="select">
+            <select
+              value={settings.homeCurrency}
+              aria-label="汇率换算目标"
+              onChange={(event) => onChange({ homeCurrency: event.target.value })}
+            >
+              {HOME_CURRENCIES.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={13} />
+          </div>
+        </Field>
 
         <Field title="商店区域" desc={region ? `当前币种 ${region.currency} · 语言 ${region.language}` : undefined}>
           <div className="select">

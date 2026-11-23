@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Deal, PricePoint, WatchEntry } from "@radar/core";
-import { formatCountdown, formatMoney, moneyToInput, validateMoneyInput } from "@radar/core";
+import { convertMoney, formatCountdown, formatMoney, moneyToInput, validateMoneyInput } from "@radar/core";
 import { Bell, BellOff, Check, Clock, ExternalLink, MessageSquare, Star, Tag, TrendingDown, X } from "lucide-react";
 import { api } from "../lib/client";
 import { Img } from "./Img";
@@ -15,6 +15,7 @@ interface DetailPanelProps {
   isLow: boolean;
   translationTarget?: string;
   translationProvider?: string;
+  fx?: { home: string; rates?: Record<string, number> };
   history: PricePoint[];
   onClose: () => void;
   onToggleWatch: (deal: Deal) => void;
@@ -30,6 +31,7 @@ export function DetailPanel({
   isLow,
   translationTarget,
   translationProvider,
+  fx,
   history,
   onClose,
   onToggleWatch,
@@ -150,6 +152,11 @@ export function DetailPanel({
             <div className="deal-box__pct">{discount > 0 ? `−${discount}%` : "原价"}</div>
             <div className="deal-box__price">
               <span className="deal-box__final">{finalText}</span>
+              {fx && deal.currency && deal.currency !== fx.home && deal.finalPrice != null && (
+                <span className="deal-box__fx">
+                  ≈ {formatMoney(convertMoney(deal.finalPrice, deal.currency, fx.home, fx.rates) ?? undefined, fx.home)}
+                </span>
+              )}
               <span className="deal-box__sub">
                 {discount > 0 ? `原价 ${originalText}` : "当前没有折扣"}
                 {countdown ? ` · ${countdown}` : ""}
