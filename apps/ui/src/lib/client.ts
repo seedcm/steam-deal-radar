@@ -10,6 +10,7 @@ import type {
   Settings,
   Snapshot,
   SteamAccount,
+  SteamMarks,
   UpdateStatus,
   WatchEntry,
   WishlistItem,
@@ -27,6 +28,8 @@ export const api = {
   updateSettings: (patch: Partial<Settings>) => invoke("updateSettings", { patch }) as Promise<Settings>,
   search: (term: string) => invoke("search", { term }) as Promise<SearchHit[]>,
   details: (appId: number) => invoke("details", { appId }) as Promise<Deal | null>,
+  detailsZh: (appId: number) => invoke("detailsZh", { appId }) as Promise<Deal | null>,
+  steamMarks: (steamId?: string) => invoke("steamMarks", { steamId }) as Promise<SteamMarks | null>,
   reviews: (appId: number, next?: Record<string, string>, language?: string) =>
     invoke("reviews", { appId, next, language }) as Promise<ReviewPage>,
   translate: (text: string, target = "zh-CN") => invoke("translate", { text, target }) as Promise<TranslationResult>,

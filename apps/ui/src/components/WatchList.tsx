@@ -18,6 +18,8 @@ interface WatchListProps {
   onBrowse: () => void;
   query?: string;
   onClearQuery?: () => void;
+  /** 全局类别筛选 */
+  category?: number;
 }
 
 function dealFromQuote(entry: WatchEntry, quote?: WatchQuote): Deal {
@@ -47,6 +49,7 @@ export function WatchList({
   onBrowse,
   query = "",
   onClearQuery,
+  category = 0,
 }: WatchListProps) {
   const dealById = useMemo(() => new Map(deals.map((deal) => [deal.appId, deal])), [deals]);
 
@@ -68,13 +71,13 @@ export function WatchList({
   }, [watchlist, quotes, dealById]);
 
   const keyword = query.trim().toLowerCase();
-  const searched = keyword
-    ? rows.filter(
-        (row) =>
-          row.deal.name.toLowerCase().includes(keyword) ||
-          row.entry.name.toLowerCase().includes(keyword),
-      )
-    : rows;
+  const searched = rows.filter((row) => {
+    if (keyword && !row.deal.name.toLowerCase().includes(keyword) && !row.entry.name.toLowerCase().includes(keyword)) {
+      return false;
+    }
+    if (category > 0 && !row.deal.tagIds?.includes(category)) return false;
+    return true;
+  });
 
   if (rows.length === 0) {
     return (
@@ -97,10 +100,10 @@ export function WatchList({
         <div className="empty__icon">
           <Star size={26} />
         </div>
-        <h3>没有找到「{query.trim()}」</h3>
-        <p>关注列表里没有匹配的游戏，换个名字试试，或清空搜索查看全部关注。</p>
+        <h3>{query.trim() ? `没有找到「${query.trim()}」` : "该类别下没有关注的游戏"}</h3>
+        <p>关注列表里没有匹配的游戏，换个名字或类别试试。</p>
         <button type="button" className="btn" onClick={onClearQuery}>
-          清空搜索
+          {query.trim() ? "清空搜索" : "清空类别"}
         </button>
       </div>
     );

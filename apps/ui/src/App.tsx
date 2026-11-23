@@ -5,7 +5,9 @@ import {
   pickDeals,
   regionCurrency,
   type Deal,
+  type LibraryGame,
   type SearchHit,
+  type WishlistItem,
 } from "@radar/core";
 import { AlertTriangle, Info, LayoutGrid, RefreshCw, Settings2, Sparkles, Star, Tag, User, WifiOff } from "lucide-react";
 import { useRadar } from "./hooks/useRadar";
@@ -65,7 +67,10 @@ export default function App() {
   const [remoteHits, setRemoteHits] = useState<SearchHit[]>([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [freeMode, setFreeMode] = useState(false);
+  const [category, setCategory] = useState(0);
   const [fxRates, setFxRates] = useState<Record<string, number> | undefined>();
+  const [library, setLibrary] = useState<LibraryGame[]>([]);
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
   const settings = snapshot?.settings;
   const currency = regionCurrency(settings?.country ?? "cn");
@@ -77,7 +82,7 @@ export default function App() {
 
   // 全站搜索：本地折扣里找不到时，向 Steam 商店补一次
   useEffect(() => {
-    if (view !== "deals" || freeMode || query.trim().length < 2) {
+    if (view !== "deals" || freeMode || category > 0 || query.trim().length < 2) {
       setRemoteHits([]);
       setRemoteLoading(false);
       return;
@@ -95,7 +100,7 @@ export default function App() {
       alive = false;
       clearTimeout(timer);
     };
-  }, [query, view, freeMode]);
+  }, [query, view, freeMode, category, settings?.country]);
 
   // 汇率：每次刷新后拉取一次（服务端 6 小时缓存）
   useEffect(() => {
@@ -109,12 +114,49 @@ export default function App() {
     };
   }, [snapshot?.meta.lastRefreshAt]);
 
+  const accountId = snapshot?.steamAccount?.steamId;
+  const marks = snapshot?.steamMarks;
+  const wishlistIdSet = useMemo(() => new Set(marks?.wishlistIds ?? []), [marks]);
+  const cartIdSet = useMemo(() => new Set(marks?.cartIds ?? []), [marks]);
+
+  const refreshSteamLists = useCallback(async () => {
+    if (!accountId) return;
+    try {
+      const [lib, wish] = await Promise.allSettled([api.steamLibrary(accountId), api.steamWishlist(accountId)]);
+      if (lib.status === "fulfilled") setLibrary(lib.value);
+      if (wish.status === "fulfilled") setWishlist(wish.value);
+      await api.steamMarks(accountId);
+      await radar.sync();
+    } catch {
+      /* 标记抓取失败不打断 */
+    }
+  }, [accountId, radar]);
+
+  useEffect(() => {
+    if (!accountId) {
+      setLibrary([]);
+      setWishlist([]);
+      return;
+    }
+    let alive = true;
+    Promise.allSettled([api.steamLibrary(accountId), api.steamWishlist(accountId)]).then(([lib, wish]) => {
+      if (!alive) return;
+      if (lib.status === "fulfilled") setLibrary(lib.value);
+      if (wish.status === "fulfilled") setWishlist(wish.value);
+    });
+    void api.steamMarks(accountId).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [accountId, snapshot?.meta.lastRefreshAt]);
+
   const fx = useMemo(
     () => ({ home: settings?.homeCurrency ?? "CNY", rates: fxRates }),
     [settings?.homeCurrency, fxRates],
   );
 
   const deals = snapshot?.deals ?? [];
+  const categorySet = category > 0 ? category : 0;
   const filtered = useMemo(
     () =>
       pickDeals(
@@ -139,6 +181,11 @@ export default function App() {
       watchOnly,
       watchIds,
     ],
+  );
+
+  const shown = useMemo(
+    () => (categorySet > 0 ? filtered.filter((deal) => deal.tagIds?.includes(categorySet)) : filtered),
+    [filtered, categorySet],
   );
 
   const lowIds = useMemo(() => {
@@ -231,8 +278,9 @@ export default function App() {
   );
 
   const changeRegion = useCallback((code: string) => {
-    void api.updateSettings({ country: code });
-  }, []);
+    const region = REGIONS.find((item) => item.code === code);
+    void api.updateSettings({ country: code, language: region?.language ?? settings?.language });
+  }, [settings?.language]);
 
   const loginSteam = useCallback(async () => {
     await api.steamLogin();
@@ -367,7 +415,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.6.1"}
+          v{radar.appInfo?.version ?? "1.7.0"}
         </div>
       </nav>
 
@@ -380,11 +428,20 @@ export default function App() {
           showSearch={view === "deals" || view === "watch" || view === "catalog"}
           refreshing={refreshing}
           onRefresh={() => void radar.refresh(true)}
-          settings={view === "deals" || view === "catalog" ? settings ?? null : null}
+          settings={view === "deals" || view === "catalog" || view === "watch" ? settings ?? null : null}
           showDealFilters={view === "deals"}
           onRegionChange={(code) => void changeRegion(code)}
           freeMode={freeMode}
           onToggleFreeMode={() => setFreeMode((value) => !value)}
+          category={category}
+          onCategoryChange={(id) => setCategory(id)}
+          steamAccount={snapshot?.steamAccount ?? null}
+          library={library}
+          wishlist={wishlist}
+          watchIds={watchIds}
+          onOpenStore={(appId) => void api.openStore(appId)}
+          onWatchWishlist={watchWishlist}
+          onRefreshMarks={() => void refreshSteamLists()}
           watchOnly={watchOnly}
           onToggleWatchOnly={() => setWatchOnly((value) => !value)}
           onChangeSettings={changeSettings}
@@ -437,6 +494,11 @@ export default function App() {
                   onSelect={openDeal}
                   onToggleWatch={(deal) => void radar.toggleWatch(deal)}
                   fx={fx}
+                  category={category}
+                  regionKey={settings?.country ?? ""}
+                  key={`free-${settings?.country ?? ""}`}
+                  wishlistIds={wishlistIdSet}
+                  cartIds={cartIdSet}
                 />
               )}
 
@@ -462,10 +524,10 @@ export default function App() {
                       />
                     ))}
                   </div>
-                  {filtered.length > 0 && (
+                  {shown.length > 0 && (
                     <div className="section-head">
                       <h2>库内折扣</h2>
-                      <span>{filtered.length} 个</span>
+                      <span>{shown.length} 个</span>
                     </div>
                   )}
                 </>
@@ -473,7 +535,7 @@ export default function App() {
 
               {!freeMode && !hideLocalGrid && (
                 <DealGrid
-                  deals={filtered}
+                  deals={shown}
                   watchIds={watchIds}
                   lowIds={lowIds}
                   currency={currency}
@@ -483,6 +545,8 @@ export default function App() {
                   onToggleWatch={(deal) => void radar.toggleWatch(deal)}
                   onRefresh={() => void radar.refresh(true)}
                   fx={fx}
+                  wishlistIds={wishlistIdSet}
+                  cartIds={cartIdSet}
                 />
               )}
             </>
@@ -497,6 +561,11 @@ export default function App() {
               onSelect={openDeal}
               onToggleWatch={(deal) => void radar.toggleWatch(deal)}
               fx={fx}
+              category={category}
+              regionKey={settings?.country ?? ""}
+              key={`catalog-${settings?.country ?? ""}`}
+              wishlistIds={wishlistIdSet}
+              cartIds={cartIdSet}
             />
           )}
 
@@ -504,11 +573,8 @@ export default function App() {
             <AccountView
               account={snapshot?.steamAccount ?? null}
               platform={radar.appInfo?.platform ?? "web"}
-              watchIds={watchIds}
               onLogin={loginSteam}
               onLogout={logoutSteam}
-              onWatchWishlist={watchWishlist}
-              onOpenStore={(appId) => void api.openStore(appId)}
             />
           )}
 
@@ -528,7 +594,11 @@ export default function App() {
                 setQuery("");
               }}
               query={query}
-              onClearQuery={() => setQuery("")}
+              onClearQuery={() => {
+                setQuery("");
+                setCategory(0);
+              }}
+              category={category}
             />
           )}
 
@@ -572,6 +642,7 @@ export default function App() {
           isLow={lowIds.has(selected.appId)}
           translationTarget={settings?.translationTarget}
           translationProvider={settings?.translationProvider}
+          language={settings?.language}
           fx={fx}
           history={snapshot?.history[String(selected.appId)] ?? []}
           onClose={() => setSelected(null)}

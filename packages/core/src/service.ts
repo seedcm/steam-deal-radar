@@ -22,13 +22,14 @@ import {
   buildGamesUrl,
   buildProfileUrl,
   buildReviewsMoreUrl,
-  buildReviewsUrl,
   buildStoreSearchUrl,
+  buildReviewsUrl,
   buildWishlistDataUrl,
   parseAppDetails,
   parseFeaturedSpecials,
   parseSearchPayload,
   parseSearchPayloadAll,
+  parseCartLineItems,
   parseGamesXml,
   parseProfileXml,
   parseReviewsHtml,
@@ -48,6 +49,7 @@ import type {
   Settings,
   Snapshot,
   SteamAccount,
+  SteamMarks,
   WatchEntry,
   WatchQuote,
   WishlistItem,
@@ -459,6 +461,36 @@ export class RadarService {
   }
 
   /** 打开详情时按需拉取简介等信息 */
+  /** 用中文区参数拉一次详情，用于非中文区时展示中文名 */
+  async loadDetailsZh(appId: number): Promise<Deal | null> {
+    const body = await this.http(buildAppDetailsUrl(appId, { country: "cn", language: "schinese" }));
+    const deal = parseAppDetails(body, appId);
+    if (!deal) return null;
+    this.store.mergeDeals([deal]);
+    this.store.scheduleSave();
+    return deal;
+  }
+
+  /** 登录后的收藏/购物车标记：愿望单来自 wishlistdata，购物车解析商店购物车页面 */
+  async steamMarks(steamId: string): Promise<SteamMarks> {
+    let wishlist: WishlistItem[] = [];
+    try {
+      wishlist = await this.steamWishlist(steamId);
+    } catch {
+      wishlist = [];
+    }
+    let cartIds: number[] = [];
+    try {
+      const body = await this.http("https://store.steampowered.com/cart/");
+      cartIds = parseCartLineItems(body);
+    } catch {
+      cartIds = [];
+    }
+    const marks: SteamMarks = { wishlistIds: wishlist.map((item) => item.appId), cartIds, at: Date.now() };
+    this.store.setSteamMarks(marks);
+    return marks;
+  }
+
   async loadDetails(appId: number): Promise<Deal | null> {
     const opts = { country: this.store.settings.country, language: this.store.settings.language };
     const body = await this.http(buildAppDetailsUrl(appId, opts));

@@ -16,6 +16,8 @@ interface DetailPanelProps {
   translationTarget?: string;
   translationProvider?: string;
   fx?: { home: string; rates?: Record<string, number> };
+  /** 当前商店语言（决定详情名语言与评价默认语言） */
+  language?: string;
   history: PricePoint[];
   onClose: () => void;
   onToggleWatch: (deal: Deal) => void;
@@ -32,6 +34,7 @@ export function DetailPanel({
   translationTarget,
   translationProvider,
   fx,
+  language,
   history,
   onClose,
   onToggleWatch,
@@ -44,6 +47,7 @@ export function DetailPanel({
   const [note, setNote] = useState(entry?.note ?? "");
   const [saving, setSaving] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
+  const [zhName, setZhName] = useState<string | null>(null);
   const [showReviews, setShowReviews] = useState(false);
 
   useEffect(() => {
@@ -61,6 +65,21 @@ export function DetailPanel({
       alive = false;
     };
   }, [deal.appId]);
+
+  // 非中文区时补抓中文名
+  useEffect(() => {
+    let alive = true;
+    setZhName(null);
+    if (language && language !== "schinese") {
+      api
+        .detailsZh(deal.appId)
+        .then((detail) => alive && setZhName(detail?.name ?? null))
+        .catch(() => {});
+    }
+    return () => {
+      alive = false;
+    };
+  }, [deal.appId, language]);
 
   useEffect(() => {
     setTarget(moneyToInput(entry?.targetPrice));
@@ -127,6 +146,7 @@ export function DetailPanel({
 
         <div className="drawer__body">
           <h2 className="drawer__title">{deal.name}</h2>
+          {zhName && zhName !== deal.name && <div className="drawer__zhname">中文名：{zhName}</div>}
           <div className="drawer__meta">
             <PlatformIcons platforms={deal.platforms} />
             <span>{platformLabel(deal.platforms)}</span>
@@ -197,6 +217,7 @@ export function DetailPanel({
               reviewPercent={deal.reviewPercent}
               defaultTarget={translationTarget}
               translationProvider={translationProvider}
+              defaultLanguage={language}
             />
           )}
 
@@ -282,7 +303,7 @@ export function DetailPanel({
                 )}
               </span>
             </div>
-            <Sparkline points={history} />
+            <Sparkline points={history} currency={currency} rates={fx?.rates} />
           </div>
 
           {description && (

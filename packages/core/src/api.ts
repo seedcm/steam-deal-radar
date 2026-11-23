@@ -9,6 +9,7 @@ import type {
   Settings,
   Snapshot,
   SteamAccount,
+  SteamMarks,
   WatchEntry,
   WishlistItem,
 } from "./types";
@@ -26,6 +27,8 @@ export interface RadarInvokeMap {
   updateSettings: { payload: { patch: Partial<Settings> }; result: Settings };
   search: { payload: { term: string }; result: SearchHit[] };
   details: { payload: { appId: number }; result: Deal | null };
+  detailsZh: { payload: { appId: number }; result: Deal | null };
+  steamMarks: { payload: { steamId?: string }; result: SteamMarks | null };
   reviews: { payload: { appId: number; next?: Record<string, string>; language?: string }; result: ReviewPage };
   translate: { payload: { text: string; target?: string }; result: TranslationResult };
   openExternal: { payload: { url: string }; result: void };

@@ -187,13 +187,27 @@ export class RadarController {
         const steamId = await this.host.steamLogin();
         const account = await this.service.steamProfile(steamId);
         this.service.store.setSteamAccount(account);
+        void this.service.steamMarks(steamId).catch(() => {});
         this.emit({ type: "snapshot", snapshot: this.service.snapshot() });
         return account;
       }
       case "steamLogout": {
         this.service.store.setSteamAccount(null);
+        this.service.store.setSteamMarks(null);
         this.emit({ type: "snapshot", snapshot: this.service.snapshot() });
         return undefined;
+      }
+      case "steamMarks": {
+        const { steamId } = (payload ?? {}) as { steamId?: string };
+        const id = steamId ?? this.service.store.steamAccount?.steamId;
+        if (!id) return null;
+        const marks = await this.service.steamMarks(id);
+        this.emit({ type: "snapshot", snapshot: this.service.snapshot() });
+        return marks;
+      }
+      case "detailsZh": {
+        const { appId } = payload as { appId: number };
+        return this.service.loadDetailsZh(appId);
       }
       case "steamProfile": {
         const { steamId } = payload as { steamId: string };

@@ -527,6 +527,45 @@ export function parseWishlistData(body: string): WishlistItem[] {
   }
 }
 
+/** 从商店购物车页面（登录态 HTML）提取 line_items 里的 appid */
+export function parseCartLineItems(body: string): number[] {
+  try {
+    const key = '"line_items":[';
+    const start = body.indexOf(key);
+    if (start < 0) return [];
+    const open = start + key.length - 1;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = -1;
+    for (let i = open; i < body.length; i += 1) {
+      const char = body[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+      if (char === '"') inString = true;
+      else if (char === "[") depth += 1;
+      else if (char === "]") {
+        depth -= 1;
+        if (depth === 0) {
+          end = i + 1;
+          break;
+        }
+      }
+    }
+    if (end < 0) return [];
+    const parsed = JSON.parse(body.slice(open, end)) as Array<{ appid?: number; id?: number }>;
+    return parsed
+      .map((item) => Number(item?.appid ?? item?.id ?? 0))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  } catch {
+    return [];
+  }
+}
+
 /** Steam OpenID 登录地址（桌面端主进程使用） */
 export function buildOpenIdAuthUrl(realm: string, returnTo: string): string {
   const params = new URLSearchParams({

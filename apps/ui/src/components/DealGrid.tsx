@@ -13,9 +13,11 @@ interface DealGridProps {
   onToggleWatch: (deal: Deal) => void;
   onRefresh: () => void;
   fx?: { home: string; rates?: Record<string, number> };
+  wishlistIds?: Set<number>;
+  cartIds?: Set<number>;
 }
 
-export function DealGrid({ deals, watchIds, lowIds, currency, loading, offline, onSelect, onToggleWatch, onRefresh, fx }: DealGridProps) {
+export function DealGrid({ deals, watchIds, lowIds, currency, loading, offline, onSelect, onToggleWatch, onRefresh, fx, wishlistIds, cartIds }: DealGridProps) {
   if (loading) {
     return (
       <div className="grid" aria-busy="true">
@@ -64,6 +66,8 @@ export function DealGrid({ deals, watchIds, lowIds, currency, loading, offline, 
           onSelect={onSelect}
           onToggleWatch={onToggleWatch}
           fx={fx}
+          wishlisted={wishlistIds?.has(deal.appId)}
+          inCart={cartIds?.has(deal.appId)}
         />
       ))}
     </div>

@@ -1,7 +1,7 @@
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, Gift, RefreshCw, Search, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, BookOpen, Check, ExternalLink, Gift, Heart, RefreshCw, Search, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { PlatformFilter, Settings, SortKey } from "@radar/core";
-import { DEFAULT_SORT_DIRECTION, REGIONS, SORT_LABELS } from "@radar/core";
+import type { LibraryGame, PlatformFilter, Settings, SortKey, SteamAccount, WishlistItem } from "@radar/core";
+import { DEFAULT_SORT_DIRECTION, REGIONS, SORT_LABELS, STORE_CATEGORIES } from "@radar/core";
 import { ChevronDown } from "lucide-react";
 
 interface TopBarProps {
@@ -23,6 +23,17 @@ interface TopBarProps {
   /** 只看免费游戏 */
   freeMode?: boolean;
   onToggleFreeMode?: () => void;
+  /** 全局类别筛选（0 = 全部类别） */
+  category?: number;
+  onCategoryChange?: (id: number) => void;
+  /** 登录后的游戏库/愿望单菜单 */
+  steamAccount?: SteamAccount | null;
+  library?: LibraryGame[];
+  wishlist?: WishlistItem[];
+  watchIds?: Set<number>;
+  onOpenStore?: (appId: number) => void;
+  onWatchWishlist?: (item: WishlistItem) => void;
+  onRefreshMarks?: () => void;
 }
 
 const DISCOUNT_STEPS = [
@@ -57,6 +68,15 @@ export function TopBar({
   showDealFilters = true,
   freeMode = false,
   onToggleFreeMode,
+  category = 0,
+  onCategoryChange,
+  steamAccount,
+  library = [],
+  wishlist = [],
+  watchIds,
+  onOpenStore,
+  onWatchWishlist,
+  onRefreshMarks,
 }: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -95,6 +115,24 @@ export function TopBar({
         <h1>{title}</h1>
         <p>{subtitle}</p>
       </div>
+
+      {settings && onCategoryChange && (
+        <div className="select select--compact" title="按类别筛选（对所有页面生效）">
+          <select
+            value={category}
+            aria-label="按类别筛选"
+            onChange={(event) => onCategoryChange(Number(event.target.value))}
+          >
+            <option value={0}>全部类别</option>
+            {STORE_CATEGORIES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={12} />
+        </div>
+      )}
 
       {showSearch && (
         <div className="search">
@@ -193,6 +231,18 @@ export function TopBar({
       )}
 
       <div className="topbar__actions">
+        {steamAccount && (
+          <SteamListMenus
+            account={steamAccount}
+            library={library}
+            wishlist={wishlist}
+            watchIds={watchIds ?? new Set()}
+            onOpenStore={onOpenStore ?? (() => {})}
+            onWatchWishlist={onWatchWishlist ?? (() => {})}
+            onRefresh={onRefreshMarks ?? (() => {})}
+          />
+        )}
+
         {settings && showDealFilters && (
           <div className="sortmenu" ref={sortRef}>
           <button
@@ -262,5 +312,107 @@ export function TopBar({
       </button>
       </div>
     </header>
+  );
+}
+
+
+function SteamListMenus({
+  library,
+  wishlist,
+  watchIds,
+  onOpenStore,
+  onWatchWishlist,
+  onRefresh,
+}: {
+  account: SteamAccount;
+  library: LibraryGame[];
+  wishlist: WishlistItem[];
+  watchIds: Set<number>;
+  onOpenStore: (appId: number) => void;
+  onWatchWishlist: (item: WishlistItem) => void;
+  onRefresh: () => void;
+}) {
+  const [open, setOpen] = useState<"library" | "wishlist" | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const list = open === "library" ? library : wishlist;
+
+  return (
+    <div className="steam-menus" ref={ref}>
+      <button
+        type="button"
+        className="btn btn--sm"
+        aria-expanded={open === "library"}
+        onClick={() => setOpen((value) => (value === "library" ? null : "library"))}
+      >
+        <BookOpen size={13} /> 游戏库 <em className="steam-menus__count">{library.length}</em>
+      </button>
+      <button
+        type="button"
+        className="btn btn--sm"
+        aria-expanded={open === "wishlist"}
+        onClick={() => setOpen((value) => (value === "wishlist" ? null : "wishlist"))}
+      >
+        <Heart size={13} /> 愿望单 <em className="steam-menus__count">{wishlist.length}</em>
+      </button>
+
+      {open && (
+        <div className="steam-menus__panel" role="menu">
+          <div className="steam-menus__head">
+            <b>{open === "library" ? "我的游戏库" : "我的愿望单"}</b>
+            <button type="button" className="btn btn--sm" onClick={onRefresh} title="刷新列表与收藏/购物车标记">
+              <RefreshCw size={12} />
+            </button>
+          </div>
+          <div className="steam-menus__list">
+            {list.length === 0 && <p className="hint">暂无数据；若隐私设置为私密，请先公开对应内容再刷新。</p>}
+            {list.slice(0, 60).map((item) => {
+              const watched = watchIds.has(item.appId);
+              return (
+                <div className="steam-menu-row" key={item.appId}>
+                  <img
+                    className="steam-menu-row__thumb"
+                    src={(item as WishlistItem).capsule ?? (item as LibraryGame).logo}
+                    alt={item.name}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="steam-menu-row__name" title={item.name}>
+                    {item.name}
+                  </span>
+                  {open === "wishlist" && (
+                    <button
+                      type="button"
+                      className={`icon-btn icon-btn--bare ${watched ? "is-active" : ""}`}
+                      title={watched ? "已在关注列表" : "加入关注"}
+                      onClick={() => onWatchWishlist(item as WishlistItem)}
+                    >
+                      <Star size={13} fill={watched ? "currentColor" : "none"} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn--bare"
+                    title="在 Steam 打开"
+                    onClick={() => onOpenStore(item.appId)}
+                  >
+                    <ExternalLink size={13} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

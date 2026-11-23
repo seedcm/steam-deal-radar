@@ -13,9 +13,12 @@ interface DealCardProps {
   onToggleWatch: (deal: Deal) => void;
   /** 汇率换算：home 为目标币种，rates 为 { 币种: 兑 1 USD 汇率 } */
   fx?: { home: string; rates?: Record<string, number> };
+  /** 登录后：已在愿望单 / 已在购物车 */
+  wishlisted?: boolean;
+  inCart?: boolean;
 }
 
-export function DealCard({ deal, watched, isLow, currency, onSelect, onToggleWatch, fx }: DealCardProps) {
+export function DealCard({ deal, watched, isLow, currency, onSelect, onToggleWatch, fx, wishlisted, inCart }: DealCardProps) {
   const finalText = deal.finalPriceText ?? formatMoney(deal.finalPrice, deal.currency ?? currency);
   const originalText = deal.originalPriceText ?? formatMoney(deal.originalPrice, deal.currency ?? currency);
   const countdown = formatCountdown(deal.discountEndsAt);
@@ -38,6 +41,12 @@ export function DealCard({ deal, watched, isLow, currency, onSelect, onToggleWat
       <div className="card__media">
         <Img src={deal.image} alt={deal.name} />
         {discounted && <span className="badge">−{deal.discountPercent}%</span>}
+        {(wishlisted || inCart) && (
+          <span className="card__marks">
+            {wishlisted && <i className="mark mark--wish">已收藏</i>}
+            {inCart && <i className="mark mark--cart">购物车</i>}
+          </span>
+        )}
         <button
           type="button"
           className={`star ${watched ? "is-on" : ""}`}

@@ -141,8 +141,16 @@ export interface Meta {
   refreshing: boolean;
 }
 
+/** 登录后抓取的收藏（愿望单）与购物车标记 */
+export interface SteamMarks {
+  wishlistIds: number[];
+  cartIds: number[];
+  at: number;
+}
+
 export interface Snapshot {
   steamAccount: SteamAccount | null;
+  steamMarks: SteamMarks | null;
   deals: Deal[];
   watchlist: WatchEntry[];
   watchQuotes: Record<string, WatchQuote>;

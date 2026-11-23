@@ -1,11 +1,29 @@
 import type { PricePoint } from "@radar/core";
+import { REGIONS, convertMoney, formatMoney } from "@radar/core";
 
 interface SparklineProps {
   points: PricePoint[];
+  currency?: string;
+  rates?: Record<string, number>;
 }
 
 /** 纯 SVG 价格走势，不引入图表库，离线也能画 */
-export function Sparkline({ points }: SparklineProps) {
+export function Sparkline({ points, currency, rates }: SparklineProps) {
+  const regionCurrencies = [...new Set(REGIONS.map((region) => region.currency))];
+
+  const tooltipFor = (point: PricePoint): string => {
+    const date = new Date(point.at).toLocaleString("zh-CN", { hour12: false });
+    const lines = [`${formatMoney(point.price, currency ?? "CNY")} · ${date}`];
+    if (rates) {
+      for (const code of regionCurrencies) {
+        if (!currency || code === currency) continue;
+        const converted = convertMoney(point.price, currency, code, rates);
+        if (converted == null) continue;
+        lines.push(`≈ ${formatMoney(converted, code)}`);
+      }
+    }
+    return lines.join("\n");
+  };
   if (points.length < 2) {
     return (
       <div className="sparkline" style={{ display: "grid", placeItems: "center" }}>
@@ -42,7 +60,9 @@ export function Sparkline({ points }: SparklineProps) {
       <path d={area} fill="url(#spark-fill)" />
       <path d={line} fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
       {coords.map(([x, y], index) => (
-        <circle key={index} cx={x} cy={y} r={index === coords.length - 1 ? 3.5 : 2} fill="var(--accent)" opacity={index === coords.length - 1 ? 1 : 0.55} />
+        <circle key={index} cx={x} cy={y} r={index === coords.length - 1 ? 3.5 : 2} fill="var(--accent)" opacity={index === coords.length - 1 ? 1 : 0.55}>
+          <title>{tooltipFor(points[index]!)}</title>
+        </circle>
       ))}
     </svg>
   );

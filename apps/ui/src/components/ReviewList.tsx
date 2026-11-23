@@ -12,6 +12,8 @@ interface ReviewListProps {
   defaultTarget?: string;
   /** 翻译源变化时清掉旧错误 */
   translationProvider?: string;
+  /** 评价地区默认语言，跟随商店区域，可手动改 */
+  defaultLanguage?: string;
 }
 
 interface TranslationState {
@@ -35,6 +37,8 @@ const LANGUAGE_OPTIONS = [
   { value: "japanese", label: "日本語（日区）" },
   { value: "koreana", label: "한국어（韩区）" },
   { value: "russian", label: "Русский（俄区）" },
+  { value: "german", label: "Deutsch（德区）" },
+  { value: "brazilian", label: "Português（巴西区）" },
 ];
 
 function formatDate(review: GameReview): string {
@@ -59,14 +63,14 @@ function dedupe(list: GameReview[]): GameReview[] {
 }
 
 /** 评价详情：默认国区，按语言切换；非中文评价可一键免费翻译 */
-export function ReviewList({ appId, summary, reviewPercent, defaultTarget, translationProvider }: ReviewListProps) {
+export function ReviewList({ appId, summary, reviewPercent, defaultTarget, translationProvider, defaultLanguage }: ReviewListProps) {
   const [reviews, setReviews] = useState<GameReview[]>([]);
   const [next, setNext] = useState<Record<string, string> | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [types, setTypes] = useState<ReviewType[]>(["positive", "negative"]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [language, setLanguage] = useState("schinese");
+  const [language, setLanguage] = useState(defaultLanguage ?? "schinese");
   const [target, setTarget] = useState(defaultTarget || "zh-CN");
   const [translations, setTranslations] = useState<Record<string, TranslationState>>({});
 
@@ -97,6 +101,13 @@ export function ReviewList({ appId, summary, reviewPercent, defaultTarget, trans
   useEffect(() => {
     setTranslations({});
   }, [translationProvider]);
+
+  // 区域语言变化时，评价地区默认跟随，仍可手动切换
+  useEffect(() => {
+    if (defaultLanguage && LANGUAGE_OPTIONS.some((option) => option.value === defaultLanguage)) {
+      setLanguage(defaultLanguage);
+    }
+  }, [defaultLanguage]);
 
   const filtered = useMemo(() => filterReviews(reviews, types), [reviews, types]);
   const upCount = useMemo(() => reviews.filter((review) => review.votedUp).length, [reviews]);

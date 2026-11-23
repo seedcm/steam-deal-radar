@@ -7,6 +7,7 @@ import type {
   Settings,
   Snapshot,
   SteamAccount,
+  SteamMarks,
   StorageAdapter,
   WatchEntry,
   PricePoint,
@@ -49,6 +50,7 @@ export interface PersistedState {
   version: number;
   settings: Settings;
   steamAccount: SteamAccount | null;
+  steamMarks: SteamMarks | null;
   watchlist: WatchEntry[];
   deals: Deal[];
   watchQuotes: Record<string, WatchQuote>;
@@ -63,6 +65,7 @@ export function createEmptyState(): PersistedState {
     version: STATE_VERSION,
     settings: { ...DEFAULT_SETTINGS, quietHours: { ...DEFAULT_SETTINGS.quietHours } },
     steamAccount: null,
+    steamMarks: null,
     watchlist: [],
     deals: [],
     watchQuotes: {},
@@ -103,6 +106,10 @@ export class RadarStore {
         lowest: parsed.lowest ?? {},
         history: parsed.history ?? {},
         steamAccount: parsed.steamAccount && typeof parsed.steamAccount.steamId === "string" ? parsed.steamAccount : null,
+        steamMarks:
+          parsed.steamMarks && Array.isArray(parsed.steamMarks.wishlistIds)
+            ? { wishlistIds: parsed.steamMarks.wishlistIds, cartIds: parsed.steamMarks.cartIds ?? [], at: parsed.steamMarks.at ?? 0 }
+            : null,
       };
     } catch (error) {
       console.error("[radar] 状态文件损坏，已重置缓存", error);
@@ -124,6 +131,11 @@ export class RadarStore {
 
   setSteamAccount(account: SteamAccount | null): void {
     this.state = { ...this.state, steamAccount: account };
+    this.scheduleSave(50);
+  }
+
+  setSteamMarks(marks: SteamMarks | null): void {
+    this.state = { ...this.state, steamMarks: marks };
     this.scheduleSave(50);
   }
 
@@ -234,6 +246,7 @@ export class RadarStore {
   snapshot(meta: Partial<Meta> = {}): Snapshot {
     return {
       steamAccount: this.state.steamAccount,
+      steamMarks: this.state.steamMarks,
       deals: this.state.deals,
       watchlist: this.state.watchlist,
       watchQuotes: this.state.watchQuotes,
