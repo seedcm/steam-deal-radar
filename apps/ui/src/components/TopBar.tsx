@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, RefreshCw, Search, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PlatformFilter, Settings, SortKey } from "@radar/core";
-import { DEFAULT_SORT_DIRECTION, SORT_LABELS } from "@radar/core";
+import { DEFAULT_SORT_DIRECTION, REGIONS, SORT_LABELS } from "@radar/core";
 import { ChevronDown } from "lucide-react";
 
 interface TopBarProps {
@@ -16,6 +16,10 @@ interface TopBarProps {
   watchOnly: boolean;
   onToggleWatchOnly: () => void;
   onChangeSettings: (patch: Partial<Settings>) => void;
+  /** 切换查看区域（会触发该区域的折扣刷新） */
+  onRegionChange?: (code: string) => void;
+  /** 是否显示折扣筛选（折扣力度/平台/只看关注/排序），全部游戏页不需要 */
+  showDealFilters?: boolean;
 }
 
 const DISCOUNT_STEPS = [
@@ -46,6 +50,8 @@ export function TopBar({
   watchOnly,
   onToggleWatchOnly,
   onChangeSettings,
+  onRegionChange,
+  showDealFilters = true,
 }: TopBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -104,6 +110,28 @@ export function TopBar({
         <div className="topbar__filters">
           <div className="select select--compact">
             <select
+              value={settings.country}
+              aria-label="查看区域"
+              title="选择要查看折扣的区域（切换后自动刷新）"
+              onChange={(event) => {
+                const code = event.target.value;
+                if (onRegionChange) onRegionChange(code);
+                else onChangeSettings({ country: code });
+              }}
+            >
+              {REGIONS.map((region) => (
+                <option key={region.code} value={region.code}>
+                  {region.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={12} />
+          </div>
+
+          {showDealFilters && (
+            <>
+          <div className="select select--compact">
+            <select
               value={settings.minDiscount}
               aria-label="折扣力度"
               title="折扣力度"
@@ -143,11 +171,13 @@ export function TopBar({
             <Star size={12} fill={watchOnly ? "currentColor" : "none"} />
             关注
           </button>
+            </>
+          )}
         </div>
       )}
 
       <div className="topbar__actions">
-        {settings && (
+        {settings && showDealFilters && (
           <div className="sortmenu" ref={sortRef}>
           <button
             type="button"

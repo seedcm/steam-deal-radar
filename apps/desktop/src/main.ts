@@ -1,11 +1,13 @@
 import { app, BrowserWindow, Menu, Notification, Tray, clipboard, dialog, ipcMain, nativeImage, net, protocol, screen, session, shell } from "electron";
 import { createHash } from "node:crypto";
+import { createServer } from "node:http";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import {
   RadarController,
   RadarService,
   RadarStore,
+  buildOpenIdAuthUrl,
   type AppNotification,
   type RadarEvent,
   type HttpRequestInit,
@@ -515,6 +517,12 @@ async function devCaptureSequence(): Promise<void> {
   await wait(900);
   await shoot("02-watch");
   await click(".rail__item:nth-child(3)");
+  await wait(4000);
+  await shoot("02b-catalog");
+  await click(".rail__item:nth-child(4)");
+  await wait(900);
+  await shoot("02c-account");
+  await click(".rail__item:nth-child(5)");
   await wait(700);
   await shoot("03-settings");
   if (mainWindow) {
@@ -541,7 +549,7 @@ async function devCaptureSequence(): Promise<void> {
   }
   await wait(400);
   await shoot("03c-settings-appearance");
-  await click(".rail__item:nth-child(4)");
+  await click(".rail__item:nth-child(6)");
   await wait(700);
   await shoot("03b-about");
   await clickText("查看协议");
@@ -644,6 +652,95 @@ async function devCaptureSequence(): Promise<void> {
 
 /* ---------- 启动 ---------- */
 
+/**
+ * 用 Steam OpenID 在应用内窗口完成登录，回调用本机临时 HTTP 服务接收。
+ * 登录窗口使用默认 session，登录后 Steam 的社区/商店 Cookie 会留在会话里，
+ * 之后用 net.fetch 读取游戏库、愿望单时自动携带。
+ */
+function steamOpenIdLogin(): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    let loginWindow: BrowserWindow | null = null;
+    const html = (message: string) =>
+      `<!doctype html><meta charset="utf-8"><title>Steam 登录</title><body style="font-family:sans-serif;padding:40px"><h2>${message}</h2><p>可以关闭本窗口并返回「Steam 折扣雷达」。</p></body>`;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      server.close();
+      fn();
+    };
+    const server = createServer((request, response) => {
+      void (async () => {
+        const url = new URL(request.url ?? "/", "http://127.0.0.1");
+        if (url.pathname !== "/callback") {
+          response.writeHead(404).end();
+          return;
+        }
+        const claimed = url.searchParams.get("openid.claimed_id") ?? "";
+        const steamId = claimed.replace(/\/$/, "").split("/").pop() ?? "";
+        if (!/^\d{17}$/.test(steamId)) {
+          response.writeHead(400, { "content-type": "text/html; charset=utf-8" });
+          response.end(html("登录失败：缺少 Steam 身份信息"));
+          finish(() => reject(new Error("Steam 登录回调缺少身份信息")));
+          return;
+        }
+        const verify = new URLSearchParams(url.searchParams);
+        verify.set("openid.mode", "check_authentication");
+        try {
+          const body = await httpGet("https://steamcommunity.com/openid/login", {
+            method: "POST",
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            body: verify.toString(),
+          });
+          if (!body.includes("is_valid:true")) {
+            response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+            response.end(html("登录验证失败，请重试"));
+            finish(() => reject(new Error("Steam 登录验证失败，请重试")));
+            return;
+          }
+        } catch (error) {
+          response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+          response.end(html("网络错误，请检查网络或代理后重试"));
+          finish(() => reject(error instanceof Error ? error : new Error("Steam 登录验证失败")));
+          return;
+        }
+        response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+        response.end(html("登录成功，正在返回应用…"));
+        finish(() => {
+          // 顺手访问一次商店首页，让 store.steampowered.com 的登录 Cookie 也落到会话里
+          if (loginWindow && !loginWindow.isDestroyed()) {
+            void loginWindow.loadURL("https://store.steampowered.com/");
+            setTimeout(() => {
+              if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
+            }, 2500);
+          }
+          resolve(steamId);
+        });
+      })();
+    });
+    server.on("error", (error) => finish(() => reject(error)));
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      const realm = `http://127.0.0.1:${port}`;
+      loginWindow = new BrowserWindow({
+        width: 620,
+        height: 760,
+        title: "登录 Steam",
+        autoHideMenuBar: true,
+        parent: mainWindow ?? undefined,
+      });
+      loginWindow.loadURL(buildOpenIdAuthUrl(realm, `${realm}/callback`)).catch(() => {
+        finish(() => reject(new Error("无法打开 Steam 登录页面，请检查网络或代理")));
+      });
+      loginWindow.on("closed", () => {
+        if (!settled) finish(() => reject(new Error("登录已取消")));
+      });
+    });
+    setTimeout(() => finish(() => reject(new Error("登录超时：请重新登录"))), 5 * 60_000);
+  });
+}
+
 async function bootstrap(): Promise<void> {
   const store = new RadarStore(storage);
   service = new RadarService({
@@ -669,6 +766,7 @@ async function bootstrap(): Promise<void> {
       copyText: async (text) => {
         await clipboard.writeText(text);
       },
+      steamLogin: () => steamOpenIdLogin(),
       notify,
       checkUpdate: async () => checkForUpdates(true),
       installUpdate: async () => {

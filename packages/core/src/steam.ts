@@ -1,5 +1,5 @@
 import { regionCurrency } from "./format";
-import type { Deal, GameReview, Platforms, ReviewPage, SearchHit, Settings } from "./types";
+import type { Deal, GameReview, LibraryGame, Platforms, ReviewPage, SearchHit, Settings, WishlistItem } from "./types";
 
 const STORE = "https://store.steampowered.com";
 const API = "https://api.steampowered.com";
@@ -50,7 +50,7 @@ function parsePlatforms(source: string): Platforms {
  * 解析 https://store.steampowered.com/search/results/?specials=1&infinite=1 返回的 results_html。
  * Steam 未提供官方 JSON 折扣列表接口，这里解析稳定的服务端渲染片段。
  */
-export function parseSearchResults(html: string, currency = "CNY"): Deal[] {
+export function parseSearchResults(html: string, currency = "CNY", includeAll = false): Deal[] {
   if (!html) return [];
   const deals: Deal[] = [];
   const seen = new Set<number>();
@@ -66,11 +66,35 @@ export function parseSearchResults(html: string, currency = "CNY"): Deal[] {
     if (!name) continue;
 
     const discountPercent = Number(firstGroup(block, /data-discount="(-?\d+)"/) ?? 0);
-    if (!Number.isFinite(discountPercent) || discountPercent <= 0) continue;
+    if (!Number.isFinite(discountPercent)) continue;
+    if (!includeAll && discountPercent <= 0) continue;
 
     const finalCents = Number(firstGroup(block, /data-price-final="(\d+)"/) ?? NaN);
     const originalText = firstGroup(block, /discount_original_price[^"]*">([^<]*)</);
-    const finalText = firstGroup(block, /discount_final_price[^"]*">([^<]*)</);
+    let finalText = firstGroup(block, /discount_final_price[^"]*">([^<]*)</);
+    let finalPrice = Number.isFinite(finalCents) ? finalCents : undefined;
+    let originalPrice = Number.isFinite(finalCents) && discountPercent > 0
+      ? Math.round(finalCents / (1 - discountPercent / 100))
+      : undefined;
+
+    // 非打折行：从 .search_price 文本解析价格（如 ¥ 76.00 / Free To Play）
+    if (discountPercent <= 0 && !finalText) {
+      const rawPrice = firstGroup(block, /search_price[^>]*>([^<]*)</);
+      if (rawPrice) {
+        const text = decodeEntities(rawPrice).trim();
+        if (/免费|free to play/i.test(text)) {
+          finalText = text;
+          finalPrice = 0;
+        } else {
+          const match = text.match(/([\d][\d,. ]*)/);
+          if (match) {
+            finalPrice = Math.round(Number(match[1].replace(/[^\d.]/g, "")) * 100);
+            finalText = text;
+          }
+        }
+      }
+    }
+
     const tooltip = decodeEntities(firstGroup(block, /data-tooltip-html="([^"]*)"/) ?? "");
     const reviewSummary = tooltip ? stripTags(tooltip.split(/<br\s*\/?>/i)[0] ?? "") : undefined;
     const reviewPercent = tooltip ? Number(firstGroup(tooltip, /(\d+)\s*%/) ?? NaN) : NaN;
@@ -80,11 +104,9 @@ export function parseSearchResults(html: string, currency = "CNY"): Deal[] {
       appId,
       name,
       image: firstGroup(block, /<div class="search_capsule">\s*<img src="([^"]+)"/),
-      discountPercent,
-      originalPrice: Number.isFinite(finalCents)
-        ? Math.round(finalCents / (1 - discountPercent / 100))
-        : undefined,
-      finalPrice: Number.isFinite(finalCents) ? finalCents : undefined,
+      discountPercent: discountPercent > 0 ? discountPercent : 0,
+      originalPrice,
+      finalPrice,
       originalPriceText: originalText ? decodeEntities(originalText).trim() : undefined,
       finalPriceText: finalText ? decodeEntities(finalText).trim() : undefined,
       currency,
@@ -103,9 +125,19 @@ export function parseSearchResults(html: string, currency = "CNY"): Deal[] {
 export function parseSearchPayload(body: string, currency = "CNY"): Deal[] {
   try {
     const json = JSON.parse(body) as { results_html?: string };
-    return parseSearchResults(json.results_html ?? "", currency);
+    return parseSearchResults(json.results_html ?? "", currency, false);
   } catch {
-    return parseSearchResults(body, currency);
+    return parseSearchResults(body, currency, false);
+  }
+}
+
+/** 同 parseSearchPayload，但包含非打折游戏（全部游戏目录） */
+export function parseSearchPayloadAll(body: string, currency = "CNY"): Deal[] {
+  try {
+    const json = JSON.parse(body) as { results_html?: string };
+    return parseSearchResults(json.results_html ?? "", currency, true);
+  } catch {
+    return parseSearchResults(body, currency, true);
   }
 }
 
@@ -377,4 +409,127 @@ export function parseReviewsHtml(html: string): ReviewPage {
   }
 
   return { reviews, next, hasMore: Boolean(next) };
+}
+
+/* ---------- 全部游戏（含非打折）与 Steam 账号 ---------- */
+
+/** 商店搜索结果：specials=0 表示不限打折（含非打折游戏） */
+export function buildCatalogUrl(
+  opts: DealQueryOptions,
+  page: number,
+  pageSize = 100,
+  term = "",
+): string {
+  const params = new URLSearchParams({
+    term: term.trim(),
+    start: String(page * pageSize),
+    count: String(pageSize),
+    specials: "0",
+    infinite: "1",
+    sort_by: "Reviews_DESC",
+    cc: opts.country,
+    l: opts.language,
+  });
+  return `${STORE}/search/results/?${params.toString()}`;
+}
+
+export function buildProfileUrl(steamId: string): string {
+  return `${COMMUNITY}/profiles/${encodeURIComponent(steamId)}?xml=1`;
+}
+
+export function buildGamesUrl(steamId: string): string {
+  return `${COMMUNITY}/profiles/${encodeURIComponent(steamId)}/games?tab=all&xml=1`;
+}
+
+export function buildWishlistDataUrl(steamId: string, page: number): string {
+  return `${STORE}/wishlist/profiles/${encodeURIComponent(steamId)}/wishlistdata/?p=${page}`;
+}
+
+export interface ParsedProfile {
+  steamId: string;
+  personaName: string;
+  avatar: string;
+  privacyState: number;
+}
+
+export function parseProfileXml(body: string): ParsedProfile | null {
+  const steamId =
+    firstGroup(body, /<steamID64>(\d+)<\/steamID64>/) ??
+    firstGroup(body, /<steamID><!\[CDATA\[(\d+)\]\]><\/steamID>/) ??
+    firstGroup(body, /<steamID>(\d+)<\/steamID>/);
+  if (!steamId) return null;
+  const persona = firstGroup(body, /<personaName><!\[CDATA\[([\s\S]*?)\]\]><\/personaName>/);
+  const altName = firstGroup(body, /<steamID><!\[CDATA\[([\s\S]*?)\]\]><\/steamID>/);
+  const custom = firstGroup(body, /<customURL><!\[CDATA\[([\s\S]*?)\]\]><\/customURL>/);
+  const avatar = firstGroup(body, /<avatarFull><!\[CDATA\[([\s\S]*?)\]\]><\/avatarFull>/);
+  const privacyRaw = firstGroup(body, /<privacyState>([\s\S]*?)<\/privacyState>/) ?? "3";
+  const privacyMap: Record<string, number> = { public: 3, friendsonly: 2, private: 1, friends: 2 };
+  const privacyNumber = Number(privacyRaw);
+  const privacyState = Number.isFinite(privacyNumber) ? privacyNumber : privacyMap[privacyRaw.trim().toLowerCase()] ?? 3;
+  const rawName = persona ?? (altName && !/^\d+$/.test(altName) ? altName : undefined) ?? custom;
+  return {
+    steamId,
+    personaName: rawName ? decodeEntities(rawName) : steamId,
+    avatar: avatar ?? "",
+    privacyState,
+  };
+}
+
+export function parseGamesXml(body: string): LibraryGame[] {
+  const games: LibraryGame[] = [];
+  const pattern = /<game>([\s\S]*?)<\/game>/g;
+  for (const match of body.matchAll(pattern)) {
+    const block = match[1] ?? "";
+    const appId = Number(firstGroup(block, /<appID>(\d+)<\/appID>/));
+    if (!Number.isFinite(appId)) continue;
+    const name = firstGroup(block, /<name><!\[CDATA\[([\s\S]*?)\]\]><\/name>/);
+    const logo = firstGroup(block, /<logo><!\[CDATA\[([\s\S]*?)\]\]><\/logo>/);
+    const hours = Number(firstGroup(block, /<hoursOnRecord>([\d.]+)<\/hoursOnRecord>/) ?? "0");
+    games.push({
+      appId,
+      name: name ? decodeEntities(name) : `App ${appId}`,
+      logo: logo ?? "",
+      hoursOnRecord: Number.isFinite(hours) ? hours : 0,
+    });
+  }
+  return games;
+}
+
+export function parseWishlistData(body: string): WishlistItem[] {
+  try {
+    const parsed = JSON.parse(body) as {
+      success?: number;
+      wishlistData?: Record<string, { name?: string; capsule?: string }>;
+      [key: string]: unknown;
+    };
+    const map: Record<string, { name?: string; capsule?: string }> =
+      parsed.wishlistData ?? (parsed as unknown as Record<string, { name?: string; capsule?: string }>);
+    const items: WishlistItem[] = [];
+    for (const [key, value] of Object.entries(map)) {
+      if (!value || typeof value !== "object") continue;
+      const appId = Number(key);
+      if (!Number.isFinite(appId)) continue;
+      items.push({
+        appId,
+        name: value.name ?? `App ${appId}`,
+        capsule: value.capsule ?? "",
+      });
+    }
+    return items.sort((a, b) => a.appId - b.appId);
+  } catch {
+    return [];
+  }
+}
+
+/** Steam OpenID 登录地址（桌面端主进程使用） */
+export function buildOpenIdAuthUrl(realm: string, returnTo: string): string {
+  const params = new URLSearchParams({
+    "openid.ns": "http://specs.openid.net/auth/2.0",
+    "openid.mode": "checkid_setup",
+    "openid.return_to": returnTo,
+    "openid.realm": realm,
+    "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
+    "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
+  });
+  return `${COMMUNITY}/openid/login?${params.toString()}`;
 }

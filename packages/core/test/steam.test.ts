@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCatalogUrl,
+  buildOpenIdAuthUrl,
+  parseGamesXml,
+  parseProfileXml,
+  parseWishlistData,
   buildDealsUrl,
   decodeEntities,
   parseAppDetails,
@@ -283,5 +288,54 @@ describe("parsePostedDate", () => {
     expect(parsePostedDate("2 March, 2024")).toBe(Date.UTC(2024, 2, 2, 12));
     expect(parsePostedDate("not a date")).toBeUndefined();
     expect(parsePostedDate(undefined)).toBeUndefined();
+  });
+});
+
+
+describe("目录与账号解析", () => {
+  it("buildCatalogUrl：specials=0 且携带区域", () => {
+    const url = buildCatalogUrl({ country: "us", language: "english" }, 1, 100, "Hades");
+    expect(url).toContain("specials=0");
+    expect(url).toContain("cc=us");
+    expect(url).toContain("l=english");
+    expect(url).toContain("Hades");
+    expect(url).toContain("start=100");
+  });
+
+  it("buildOpenIdAuthUrl 包含回跳地址", () => {
+    const url = buildOpenIdAuthUrl("http://127.0.0.1:6543", "http://127.0.0.1:6543/callback");
+    expect(url).toContain("openid.mode=checkid_setup");
+    expect(url).toContain("127.0.0.1%3A6543%2Fcallback");
+  });
+
+  it("parseProfileXml 解析公开资料", () => {
+    const xml = `<profile><steamID64>76561197960287930</steamID64><steamID><![CDATA[76561197960287930]]></steamID><personaName><![CDATA[Gabe Newell]]></personaName><avatarFull><![CDATA[https://avatars.steamstatic.com/x.jpg]]></avatarFull><privacyState>3</privacyState></profile>`;
+    expect(parseProfileXml(xml)).toEqual({
+      steamId: "76561197960287930",
+      personaName: "Gabe Newell",
+      avatar: "https://avatars.steamstatic.com/x.jpg",
+      privacyState: 3,
+    });
+    expect(parseProfileXml("")).toBeNull();
+  });
+
+  it("parseGamesXml 解析游戏库", () => {
+    const xml = `<gamesList><games><game><appID>730</appID><name><![CDATA[Counter-Strike 2]]></name><logo><![CDATA[https://cdn/730.jpg]]></logo><hoursOnRecord>12.5</hoursOnRecord></game><game><appID>440</appID><name><![CDATA[Team Fortress 2]]></name><logo></logo><hoursOnRecord>0.0</hoursOnRecord></game></games></gamesList>`;
+    const games = parseGamesXml(xml);
+    expect(games).toHaveLength(2);
+    expect(games[0]).toMatchObject({ appId: 730, name: "Counter-Strike 2", hoursOnRecord: 12.5 });
+  });
+
+  it("parseWishlistData 解析愿望单 JSON", () => {
+    const body = JSON.stringify({
+      "2139460": { name: "Hades II", capsule: "https://cdn/2139460.jpg" },
+      "1245620": { name: "Elden Ring", capsule: "" },
+    });
+    const items = parseWishlistData(body);
+    expect(items).toEqual([
+      { appId: 1245620, name: "Elden Ring", capsule: "" },
+      { appId: 2139460, name: "Hades II", capsule: "https://cdn/2139460.jpg" },
+    ]);
+    expect(parseWishlistData("not json")).toEqual([]);
   });
 });

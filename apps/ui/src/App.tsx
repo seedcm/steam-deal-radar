@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   REGIONS,
   formatRelativeTime,
@@ -7,11 +7,13 @@ import {
   type Deal,
   type SearchHit,
 } from "@radar/core";
-import { AlertTriangle, Info, RefreshCw, Settings2, Sparkles, Star, Tag, WifiOff } from "lucide-react";
+import { AlertTriangle, Info, LayoutGrid, RefreshCw, Settings2, Sparkles, Star, Tag, User, WifiOff } from "lucide-react";
 import { useRadar } from "./hooks/useRadar";
 import { TopBar } from "./components/TopBar";
 import { DealGrid } from "./components/DealGrid";
 import { WatchList } from "./components/WatchList";
+import { CatalogView } from "./components/CatalogView";
+import { AccountView } from "./components/AccountView";
 import { SettingsView } from "./components/SettingsView";
 import { AboutView } from "./components/AboutView";
 import { DetailPanel } from "./components/DetailPanel";
@@ -19,7 +21,7 @@ import { Toasts } from "./components/Toasts";
 import { DealCard } from "./components/DealCard";
 import { api } from "./lib/client";
 
-type View = "deals" | "watch" | "settings" | "about";
+type View = "deals" | "watch" | "catalog" | "account" | "settings" | "about";
 
 function useOnline(): boolean {
   const [online, setOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
@@ -209,6 +211,47 @@ export default function App() {
     [radar],
   );
 
+  const changeRegion = useCallback((code: string) => {
+    void api.updateSettings({ country: code });
+  }, []);
+
+  const loginSteam = useCallback(async () => {
+    await api.steamLogin();
+    await radar.sync();
+    radar.toast("Steam 登录成功", "success");
+  }, [radar]);
+
+  const logoutSteam = useCallback(async () => {
+    await api.steamLogout();
+    await radar.sync();
+    radar.toast("已退出 Steam 登录", "info");
+  }, [radar]);
+
+  const watchWishlist = useCallback(
+    (item: { appId: number; name: string; capsule: string }) => {
+      if (watchIds.has(item.appId)) {
+        radar.toast(`${item.name} 已在关注列表`, "info");
+        return;
+      }
+      void api.watch({ appId: item.appId, name: item.name, image: item.capsule });
+      void radar.sync();
+      radar.toast(`已关注 ${item.name}`, "success");
+    },
+    [watchIds, radar],
+  );
+
+  const prevCountryRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const current = settings?.country;
+    if (prevCountryRef.current !== undefined && current && prevCountryRef.current !== current) {
+      const label = REGIONS.find((region) => region.code === current)?.label ?? current;
+      radar.toast(`已切换到 ${label}，正在刷新该区域折扣…`, "info");
+      void radar.refresh(true);
+    }
+    prevCountryRef.current = current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.country]);
+
   const updateTargetFromRow = useCallback(
     async (appId: number, targetPrice?: number) => {
       await api.updateWatch(appId, { targetPrice: targetPrice ?? null });
@@ -231,7 +274,13 @@ export default function App() {
       ? `${deals.length} 个折扣在库里 · ${lastRefresh ? `${formatRelativeTime(lastRefresh)}更新` : "尚未更新"}${offline ? " · 离线" : ""}`
       : view === "watch"
         ? `${snapshot?.watchlist.length ?? 0} 个关注 · ${offline ? "离线查看" : "自动刷新中"}`
-        : `v${radar.appInfo?.version ?? "1.2.0"} · ${REGIONS.find((item) => item.code === settings?.country)?.label ?? "中国"}`;
+        : view === "catalog"
+          ? `${REGIONS.find((item) => item.code === settings?.country)?.label ?? "中国"} · 完整游戏目录（含非打折）`
+          : view === "account"
+            ? snapshot?.steamAccount
+              ? `${snapshot.steamAccount.personaName} · 游戏库与愿望单`
+              : "登录 Steam 查看游戏库与愿望单"
+            : `v${radar.appInfo?.version ?? "1.2.0"} · ${REGIONS.find((item) => item.code === settings?.country)?.label ?? "中国"}`;
 
   const diagnostics = useMemo(() => {
     const info = radar.appInfo;
@@ -249,7 +298,17 @@ export default function App() {
   }, [radar.appInfo, radar.update, settings, deals.length, snapshot]);
 
   const title =
-    view === "deals" ? "折扣雷达" : view === "watch" ? "我的关注" : view === "settings" ? "设置" : "关于";
+    view === "deals"
+      ? "折扣雷达"
+      : view === "watch"
+        ? "我的关注"
+        : view === "catalog"
+          ? "全部游戏"
+          : view === "account"
+            ? "Steam 账号"
+            : view === "settings"
+              ? "设置"
+              : "关于";
 
   return (
     <div className="app">
@@ -267,6 +326,14 @@ export default function App() {
             <span>关注</span>
             {(snapshot?.watchlist.length ?? 0) > 0 && <i className="rail__count">{snapshot?.watchlist.length}</i>}
           </button>
+          <button type="button" className={`rail__item ${view === "catalog" ? "is-active" : ""}`} onClick={() => setView("catalog")}>
+            <LayoutGrid size={18} />
+            <span>全部游戏</span>
+          </button>
+          <button type="button" className={`rail__item ${view === "account" ? "is-active" : ""}`} onClick={() => setView("account")}>
+            <User size={18} />
+            <span>账号</span>
+          </button>
           <button type="button" className={`rail__item ${view === "settings" ? "is-active" : ""}`} onClick={() => setView("settings")}>
             <Settings2 size={18} />
             <span>设置</span>
@@ -281,7 +348,7 @@ export default function App() {
           STEAM DEAL RADAR
         </div>
         <div className="rail__foot" title="当前版本">
-          v{radar.appInfo?.version ?? "1.5.2"}
+          v{radar.appInfo?.version ?? "1.6.0"}
         </div>
       </nav>
 
@@ -291,10 +358,12 @@ export default function App() {
           subtitle={subtitle}
           query={query}
           onQuery={setQuery}
-          showSearch={view === "deals" || view === "watch"}
+          showSearch={view === "deals" || view === "watch" || view === "catalog"}
           refreshing={refreshing}
           onRefresh={() => void radar.refresh(true)}
-          settings={view === "deals" ? settings ?? null : null}
+          settings={view === "deals" || view === "catalog" ? settings ?? null : null}
+          showDealFilters={view === "deals"}
+          onRegionChange={(code) => void changeRegion(code)}
           watchOnly={watchOnly}
           onToggleWatchOnly={() => setWatchOnly((value) => !value)}
           onChangeSettings={changeSettings}
@@ -383,6 +452,29 @@ export default function App() {
                 />
               )}
             </>
+          )}
+
+          {view === "catalog" && (
+            <CatalogView
+              query={query}
+              currency={currency}
+              watchIds={watchIds}
+              lowIds={lowIds}
+              onSelect={openDeal}
+              onToggleWatch={(deal) => void radar.toggleWatch(deal)}
+            />
+          )}
+
+          {view === "account" && (
+            <AccountView
+              account={snapshot?.steamAccount ?? null}
+              platform={radar.appInfo?.platform ?? "web"}
+              watchIds={watchIds}
+              onLogin={loginSteam}
+              onLogout={logoutSteam}
+              onWatchWishlist={watchWishlist}
+              onOpenStore={(appId) => void api.openStore(appId)}
+            />
           )}
 
           {view === "watch" && (

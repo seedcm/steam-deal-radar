@@ -2,12 +2,15 @@ import type { TranslationResult } from "./translate";
 import type {
   AppNotification,
   Deal,
+  LibraryGame,
   RefreshResult,
   ReviewPage,
   SearchHit,
   Settings,
   Snapshot,
+  SteamAccount,
   WatchEntry,
+  WishlistItem,
 } from "./types";
 
 /**
@@ -31,6 +34,12 @@ export interface RadarInvokeMap {
   checkUpdate: { payload: void; result: UpdateStatus };
   installUpdate: { payload: void; result: void };
   exportData: { payload: void; result: string };
+  catalog: { payload: { term?: string; page?: number }; result: Deal[] };
+  steamLogin: { payload: void; result: SteamAccount };
+  steamLogout: { payload: void; result: void };
+  steamProfile: { payload: { steamId: string }; result: SteamAccount };
+  steamLibrary: { payload: { steamId: string }; result: LibraryGame[] };
+  steamWishlist: { payload: { steamId: string }; result: WishlistItem[] };
   saveExport: { payload: void; result: { saved: boolean; path?: string; copied?: boolean } };
   copyText: { payload: { text: string }; result: void };
   importData: { payload: { json: string }; result: void };

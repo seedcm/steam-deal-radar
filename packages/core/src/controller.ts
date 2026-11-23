@@ -14,6 +14,8 @@ export interface ControllerHost {
   copyText?(text: string): void | Promise<void>;
   /** 选择位置并保存备份文件，返回保存路径；取消返回 null */
   saveFile?(data: string, suggestedName: string): Promise<string | null>;
+  /** Steam OpenID 登录（桌面端主进程实现），返回 steamId */
+  steamLogin?(): Promise<string>;
   /** 宿主向渲染层广播事件（刷新完成、更新进度等） */
   emit?(event: RadarEvent): void;
   dataDir?: string;
@@ -168,6 +170,35 @@ export class RadarController {
         if (!this.host.copyText) throw new Error("当前平台不支持复制到剪贴板");
         await this.host.copyText(text);
         return undefined;
+      }
+      case "catalog": {
+        const { term = "", page = 0 } = (payload ?? {}) as { term?: string; page?: number };
+        return this.service.catalog(term, page);
+      }
+      case "steamLogin": {
+        if (!this.host.steamLogin) throw new Error("当前平台不支持 Steam 登录（仅桌面端可用）");
+        const steamId = await this.host.steamLogin();
+        const account = await this.service.steamProfile(steamId);
+        this.service.store.setSteamAccount(account);
+        this.emit({ type: "snapshot", snapshot: this.service.snapshot() });
+        return account;
+      }
+      case "steamLogout": {
+        this.service.store.setSteamAccount(null);
+        this.emit({ type: "snapshot", snapshot: this.service.snapshot() });
+        return undefined;
+      }
+      case "steamProfile": {
+        const { steamId } = payload as { steamId: string };
+        return this.service.steamProfile(steamId);
+      }
+      case "steamLibrary": {
+        const { steamId } = payload as { steamId: string };
+        return this.service.steamLibrary(steamId);
+      }
+      case "steamWishlist": {
+        const { steamId } = payload as { steamId: string };
+        return this.service.steamWishlist(steamId);
       }
       case "importData": {
         const { json } = payload as { json: string };

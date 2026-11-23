@@ -16,30 +16,41 @@ import {
 import { planNotifications, markNotified } from "./reminders";
 import {
   buildAppDetailsUrl,
+  buildCatalogUrl,
   buildDealsUrl,
   buildFeaturedUrl,
+  buildGamesUrl,
+  buildProfileUrl,
   buildReviewsMoreUrl,
   buildReviewsUrl,
   buildStoreSearchUrl,
+  buildWishlistDataUrl,
   parseAppDetails,
   parseFeaturedSpecials,
   parseSearchPayload,
+  parseSearchPayloadAll,
+  parseGamesXml,
+  parseProfileXml,
   parseReviewsHtml,
   parseStoreSearch,
+  parseWishlistData,
 } from "./steam";
 import type { RadarStore } from "./store";
 import type {
   AppNotification,
   Deal,
   HttpClient,
+  LibraryGame,
   Meta,
   RefreshResult,
   ReviewPage,
   SearchHit,
   Settings,
   Snapshot,
+  SteamAccount,
   WatchEntry,
   WatchQuote,
+  WishlistItem,
 } from "./types";
 import { mapLimit } from "./util";
 
@@ -359,6 +370,54 @@ export class RadarService {
       text: parts.join("\n"),
       engine: provider === "libretranslate" ? "LibreTranslate" : "OpenAI 兼容",
     };
+  }
+
+  /** 全部游戏目录（含非打折），specials=0，按好评排序；term 为空时返回热门游戏 */
+  async catalog(term = "", page = 0): Promise<Deal[]> {
+    const settings = this.store.settings;
+    const currency = regionCurrency(settings.country);
+    const body = await this.http(
+      buildCatalogUrl({ country: settings.country, language: settings.language }, page, 100, term),
+    );
+    return parseSearchPayloadAll(body, currency);
+  }
+
+  async steamProfile(steamId: string): Promise<SteamAccount> {
+    const body = await this.http(buildProfileUrl(steamId));
+    const parsed = parseProfileXml(body);
+    if (!parsed) throw new Error("无法读取 Steam 账号信息，请检查账号是否存在");
+    return { ...parsed, loggedInAt: Date.now() };
+  }
+
+  async steamLibrary(steamId: string): Promise<LibraryGame[]> {
+    const body = await this.http(buildGamesUrl(steamId));
+    if (!/<gamesList/.test(body)) {
+      if (/<html|Sign in|login/i.test(body) || /profile is not public/i.test(body)) {
+        throw new Error("游戏库未公开：请在 Steam 隐私设置中把「游戏详情」设为公开后重试");
+      }
+      throw new Error("无法读取游戏库，请检查网络后重试");
+    }
+    return parseGamesXml(body);
+  }
+
+  async steamWishlist(steamId: string): Promise<WishlistItem[]> {
+    const seen = new Set<number>();
+    const items: WishlistItem[] = [];
+    for (let page = 0; page < 6; page += 1) {
+      const body = await this.http(buildWishlistDataUrl(steamId, page));
+      if (/<html|Sign in|login/i.test(body) || /"success"\s*:\s*2/.test(body)) {
+        throw new Error("愿望单未公开：请在 Steam 隐私设置中把「愿望单」设为公开后重试");
+      }
+      const parsed = parseWishlistData(body);
+      if (parsed.length === 0) break;
+      for (const item of parsed) {
+        if (seen.has(item.appId)) continue;
+        seen.add(item.appId);
+        items.push(item);
+      }
+      if (parsed.length < 60) break;
+    }
+    return items;
   }
 
   /** 打开详情时按需拉取简介等信息 */

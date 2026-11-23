@@ -1,6 +1,7 @@
 import type {
   AppInfo,
   Deal,
+  LibraryGame,
   RadarMethod,
   RefreshResult,
   ReviewPage,
@@ -8,8 +9,10 @@ import type {
   TranslationResult,
   Settings,
   Snapshot,
+  SteamAccount,
   UpdateStatus,
   WatchEntry,
+  WishlistItem,
 } from "@radar/core";
 import { invoke } from "./bridge";
 
@@ -33,6 +36,12 @@ export const api = {
   checkUpdate: () => invoke("checkUpdate") as Promise<UpdateStatus>,
   installUpdate: () => invoke("installUpdate") as Promise<void>,
   exportData: () => invoke("exportData") as Promise<string>,
+  catalog: (term = "", page = 0) => invoke("catalog", { term, page }) as Promise<Deal[]>,
+  steamLogin: () => invoke("steamLogin") as Promise<SteamAccount>,
+  steamLogout: () => invoke("steamLogout") as Promise<void>,
+  steamProfile: (steamId: string) => invoke("steamProfile", { steamId }) as Promise<SteamAccount>,
+  steamLibrary: (steamId: string) => invoke("steamLibrary", { steamId }) as Promise<LibraryGame[]>,
+  steamWishlist: (steamId: string) => invoke("steamWishlist", { steamId }) as Promise<WishlistItem[]>,
   saveExport: () =>
     invoke("saveExport") as Promise<{ saved: boolean; path?: string; copied?: boolean }>,
   copyText: (text: string) => invoke("copyText", { text }) as Promise<void>,

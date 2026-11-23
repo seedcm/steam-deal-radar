@@ -138,6 +138,7 @@ export interface Meta {
 }
 
 export interface Snapshot {
+  steamAccount: SteamAccount | null;
   deals: Deal[];
   watchlist: WatchEntry[];
   watchQuotes: Record<string, WatchQuote>;
@@ -146,6 +147,28 @@ export interface Snapshot {
   /** appId -> 历史最低折后价（分） */
   lowest: Record<string, number>;
   history: Record<string, PricePoint[]>;
+}
+
+export interface SteamAccount {
+  steamId: string;
+  personaName: string;
+  avatar: string;
+  /** Steam 隐私状态：1 公开 / 2 仅好友 / 3 私密 */
+  privacyState: number;
+  loggedInAt: number;
+}
+
+export interface LibraryGame {
+  appId: number;
+  name: string;
+  logo: string;
+  hoursOnRecord: number;
+}
+
+export interface WishlistItem {
+  appId: number;
+  name: string;
+  capsule: string;
 }
 
 export interface RefreshResult {
