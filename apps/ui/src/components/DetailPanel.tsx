@@ -47,6 +47,7 @@ export function DetailPanel({
   const [note, setNote] = useState(entry?.note ?? "");
   const [saving, setSaving] = useState(false);
   const [targetError, setTargetError] = useState<string | null>(null);
+  const [historyTab, setHistoryTab] = useState<"chart" | "list">("chart");
   const [zhName, setZhName] = useState<string | null>(null);
   const [showReviews, setShowReviews] = useState(false);
 
@@ -303,7 +304,40 @@ export function DetailPanel({
                 )}
               </span>
             </div>
-            <Sparkline points={history} currency={currency} rates={fx?.rates} />
+            {history.length > 0 && (
+              <div className="seg seg--sm" style={{ marginBottom: 8 }}>
+                <button type="button" className={historyTab === "chart" ? "is-active" : ""} onClick={() => setHistoryTab("chart")}>
+                  走势图
+                </button>
+                <button type="button" className={historyTab === "list" ? "is-active" : ""} onClick={() => setHistoryTab("list")}>
+                  价格记录
+                </button>
+              </div>
+            )}
+
+            {historyTab === "list" && history.length > 0 ? (
+              <div className="history-list">
+                {[...history].reverse().map((point) => {
+                  const converted =
+                    fx?.rates && currency ? convertMoney(point.price, currency, fx.home, fx.rates) : null;
+                  const isMin = historyStats && point.price === historyStats.min;
+                  return (
+                    <div className="history-row" key={point.at}>
+                      <span className="history-row__date">
+                        {new Date(point.at).toLocaleString("zh-CN", { hour12: false })}
+                        {isMin && <em className="tag-low">史低</em>}
+                      </span>
+                      <span className="history-row__price">{formatMoney(point.price, currency)}</span>
+                      {converted != null && fx && (
+                        <span className="history-row__conv">≈ {formatMoney(converted, fx.home)}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Sparkline points={history} currency={currency} rates={fx?.rates} />
+            )}
           </div>
 
           {description && (
