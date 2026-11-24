@@ -17,6 +17,16 @@ asar: true
 asarUnpack:
   - build/*.png
 
+mac:
+  target:
+    - target: zip
+      arch: [x64, arm64]
+  icon: build/icon.png
+  category: public.app-category.utilities
+  artifactName: SteamDealRadar-${version}-${arch}-mac.${ext}
+  # Linux 交叉构建：不做签名（未签名应用首次打开需右键→打开或去掉 quarantine 属性）
+  identity: null
+
 win:
   target:
     - target: nsis
