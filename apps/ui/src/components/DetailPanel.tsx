@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Deal, PricePoint, WatchEntry } from "@radar/core";
-import { convertMoney, formatCountdown, formatMoney, moneyToInput, validateMoneyInput } from "@radar/core";
+import { REGIONS, convertMoney, formatCountdown, formatMoney, moneyToInput, validateMoneyInput } from "@radar/core";
 import { Bell, BellOff, Check, Clock, ExternalLink, MessageSquare, Star, Tag, TrendingDown, X } from "lucide-react";
 import { api } from "../lib/client";
 import { Img } from "./Img";
@@ -318,9 +318,14 @@ export function DetailPanel({
             {historyTab === "list" && history.length > 0 ? (
               <div className="history-list">
                 {[...history].reverse().map((point) => {
-                  const converted =
-                    fx?.rates && currency ? convertMoney(point.price, currency, fx.home, fx.rates) : null;
                   const isMin = historyStats && point.price === historyStats.min;
+                  const regions =
+                    fx?.rates && currency
+                      ? [...new Set(REGIONS.map((region) => region.currency))]
+                          .filter((code) => code !== currency)
+                          .map((code) => ({ code, value: convertMoney(point.price, currency, code, fx.rates) }))
+                          .filter((item): item is { code: string; value: number } => item.value != null)
+                      : [];
                   return (
                     <div className="history-row" key={point.at}>
                       <span className="history-row__date">
@@ -328,8 +333,12 @@ export function DetailPanel({
                         {isMin && <em className="tag-low">史低</em>}
                       </span>
                       <span className="history-row__price">{formatMoney(point.price, currency)}</span>
-                      {converted != null && fx && (
-                        <span className="history-row__conv">≈ {formatMoney(converted, fx.home)}</span>
+                      {regions.length > 0 && (
+                        <span className="history-row__regions">
+                          {regions.map((item) => (
+                            <i key={item.code}>≈ {formatMoney(item.value, item.code)}</i>
+                          ))}
+                        </span>
                       )}
                     </div>
                   );

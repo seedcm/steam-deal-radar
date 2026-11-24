@@ -2429,3 +2429,26 @@ textarea.note-input {
 .history-row__conv {
   color: var(--muted);
 }
+
+.history-row {
+  flex-wrap: wrap;
+}
+
+.history-row__regions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  width: 100%;
+  padding-left: 2px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.history-row__regions i {
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.history-row__conv {
+  display: none;
+}
